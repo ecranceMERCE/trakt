@@ -1,0 +1,181 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% remove embedding identities (or conditional identities in the case of partial embeddings)
+pred rewrite-identities
+  i:term, % goal containing embedding identities to remove
+  i:term, % embedding target type
+  i:term, % logical target type
+  i:(std.map term term), % map from variables to condition proofs used to delete identities
+  o:proof. % rewrite proof
+
+rewrite-identities Term ETarget LTarget CondProofs RwProof :-
+  rewrite-identities.aux Term ETarget LTarget contravariant (t\ t) CondProofs _ RwProof.
+
+pred rewrite-identities.aux
+  i:term, i:term, i:term,
+  i:type-variance, % current logical variance, so that we can rewrite under logical connectors
+  i:(term -> term), % current context needed whenever we create a rewrite proof with @eq_rect
+  i:(std.map term term),
+  o:term,
+  o:proof.
+
+rewrite-identities.aux (prod2 N T T' F) ETarget LTarget TVar _ CondProofs Term' RwProof :-
+  !, pi x'\ decl x' _ T' => (
+    if (T' = T) (
+      % no embedding performed therefore no condition and we just need a recursive call
+      rewrite-identities.aux (F x') ETarget LTarget TVar (t\ t) CondProofs (F' x') (ProofF x'),
+      Term' = prod N T' F',
+      if (ProofF x' = proof.none (A_ x')) (
+        RwProof = proof.none (prod N T F)
+      ) (
+        if (TVar = covariant) (
+          RwProofF = (p\
+            {{ fun (H'Rw : lp:{{ prod _ T' F' }}) (x' : lp:T') => lp:(p x') (H'Rw x') }})
+        ) (
+          RwProofF = (p\ {{ fun (H' : lp:{{ prod _ T' F }}) (x' : lp:T') => lp:(p x') (H' x') }})
+        ),
+        RwProof = proof.forall T' ProofF RwProofF
+      )
+    ) (
+      % quantifier type changed => embeddings present in the subterm
+      if (embedding T T' _ _ _ _ (some LTarget) _ _) (
+        F x' = {{ lp:{{ C x' }} -> lp:{{ G x' }} }},
+        pi c\ decl c _ (C x') => (
+          std.map.add x' c CondProofs (CondProofs' x' c),
+          rewrite-identities.aux
+            (G x') ETarget LTarget TVar (t\ t) (CondProofs' x' c) (G' x') (ProofFC x' c),
+          Term' = prod N T' (x'\ {{ lp:{{ C x' }} -> lp:{{ G' x' }} }}),
+          if (ProofFC x' c = proof.none (B_ x' c)) (
+            RwProof = proof.none {{ forall x' : lp:T', lp:(C x') -> lp:(G' x') }}
+          ) (
+            if (TVar = covariant) (
+              RwProofF2 = (p\ {{
+                fun (H'Rw : lp:{{ prod _ T' F' }}) (x' : lp:T') (HCx' : lp:(C x')) =>
+                  lp:{{ p {{ x' }} {{ HCx' }} }} (H'Rw x' HCx')
+              }})
+            ) (
+              RwProofF2 = (p\ {{
+                fun (H' : lp:{{ prod _ T' F }}) (x' : lp:T') (HCx' : lp:(C x')) =>
+                  lp:{{ p {{ x' }} {{ HCx' }} }} (H' x' HCx')
+              }})
+            ),
+            RwProof = proof.forall2 T' C ProofFC RwProofF2
+          )
+        )
+      ) (
+        rewrite-identities.aux (F x') ETarget LTarget TVar (t\ t) CondProofs (F' x') (ProofF x'),
+        Term' = prod N T' F',
+        if (ProofF x' = proof.none (C_ x')) (
+          RwProof = proof.none (prod _ T' F')
+        ) (
+          if (TVar = covariant) (
+            RwProofF = (p\
+              {{ fun (H'Rw : lp:{{ prod _ T' F' }}) (x' : lp:T') => lp:(p x') (H'Rw x') }})
+          ) (
+            RwProofF = (p\ {{ fun (H' : lp:{{ prod _ T' F }}) (x' : lp:T') => lp:(p x') (H' x') }})
+          ),
+          RwProof = proof.forall T' ProofF RwProofF
+        )
+      )
+    )
+  ).
+
+rewrite-identities.aux {{ lp:A -> lp:B }} ETarget LTarget TVar _ CondProofs Term' RwProof :-
+  !, invert-variance TVar OppositeTVar,
+  rewrite-identities.aux A ETarget LTarget OppositeTVar (t\ t) CondProofs A' RwProofA,
+  rewrite-identities.aux B ETarget LTarget TVar (t\ t) CondProofs B' RwProofB,
+  if (TVar = covariant) (
+    RwProof = proof.lift-logic (app [{{ @impl_morph_impl }}, A, B, A', B']) [RwProofA, RwProofB]
+  ) (
+    RwProof = proof.lift-logic (app [{{ @impl_morph_impl }}, A', B', A, B]) [RwProofA, RwProofB]
+  ),
+  Term' = {{ lp:A' -> lp:B' }}.
+
+rewrite-identities.aux (app [F|Args]) ETarget LTarget TVar _ CondProofs Term' RwProof :-
+  logical-connector F _ ArgTVars ImplMorph _ _, !,
+  if (TVar = covariant) (
+    ArgTVars' = ArgTVars
+  ) (
+    std.map ArgTVars invert-variance ArgTVars'
+  ),
+  rewrite-identities.list Args ETarget LTarget ArgTVars' CondProofs Args' RwProofs,
+  RwProof = proof.lift-logic ImplMorph RwProofs,
+  Term' = app [F|Args'].
+
+rewrite-identities.aux
+  (app [E, app [RE, Term]]) ETarget LTarget TVar CtxF CondProofs Term' RwProof :-
+    embedding _ ETarget E RE _ BFPartInv none _ _, !,
+    rewrite-identities.aux
+      Term ETarget LTarget TVar (t\ CtxF (app [E, app [RE, t]])) CondProofs Term' RwProof1,
+    RwProof2 = proof.lift-eq TVar CtxF (app [BFPartInv, Term']),
+    RwProof = proof.trans TVar [RwProof1, RwProof2].
+
+rewrite-identities.aux
+  (app [E, app [RE, Term]]) ETarget LTarget TVar CtxF CondProofs Term' RwProof :-
+    embedding _ ETarget E RE _ BFPartInv (some LTarget) _ _, !,
+    rewrite-identities.aux
+      Term ETarget LTarget TVar (t\ CtxF (app [E, app [RE, t]])) CondProofs Term' RwProof1,
+    if (Term = app _) (
+      Term' = app [_|RwArgs],
+      std.map RwArgs (x\ p\ map-find-opt x CondProofs p) ArgsCondProofs,
+      std.map RwArgs option-make SomeRwArgs,
+      interleave SomeRwArgs ArgsCondProofs SomeRwProofArgs,
+      std.map-filter SomeRwProofArgs (o\ x\ o = some x) RwProofArgs,
+      RwProof2 = proof.lift-eq TVar CtxF (app [app [BFPartInv, Term']|RwProofArgs])
+    ) (
+      std.map.find Term' CondProofs RwProofArg,
+      RwProof2 = proof.lift-eq TVar CtxF (app [app [BFPartInv, Term'], RwProofArg])
+    ),
+    RwProof = proof.trans TVar [RwProof1, RwProof2].
+
+rewrite-identities.aux (app [F|Args]) ETarget LTarget TVar CtxF CondProofs Term' RwProof :-
+  !, rewrite-identities.args
+    Args ETarget LTarget TVar (ts\ CtxF (app [F|ts])) CondProofs Args' RwProofs,
+  RwProof = proof.trans TVar RwProofs,
+  Term' = app [F|Args'].
+
+rewrite-identities.aux Term _ _ _ CtxF _ Term (proof.none (CtxF Term)) :-
+  when (Term = prod _ _ _) (
+    coq.say "rewrite-identities used with `prod` term",
+    fail
+  ).
+
+pred rewrite-identities.list
+  i:(list term), i:term, i:term, i:(list type-variance), i:(std.map term term),
+  o:(list term), o:(list proof).
+
+rewrite-identities.list
+  [Term|Terms] ETarget LTarget [TVar|TVars] CondProofs [Term'|Terms'] [Proof|Proofs] :-
+    rewrite-identities.aux Term ETarget LTarget TVar (t\ t) CondProofs Term' Proof,
+    rewrite-identities.list Terms ETarget LTarget TVars CondProofs Terms' Proofs.
+
+rewrite-identities.list [] _ _ [] _ [] [].
+
+pred rewrite-identities.args
+  i:(list term), i:term, i:term, i:type-variance, i:((list term) -> term), i:(std.map term term),
+  o:(list term), o:(list proof).
+
+rewrite-identities.args Terms ETarget LTarget TVar CtxF CondProofs Terms' Proofs :-
+  rewrite-identities.args.aux [] Terms ETarget LTarget TVar CtxF CondProofs Terms' Proofs.
+
+pred rewrite-identities.args.aux
+  i:(list term), i:(list term), i:term, i:term, i:type-variance, i:((list term) -> term),
+  i:(std.map term term), o:(list term), o:(list proof).
+
+rewrite-identities.args.aux
+  TermsOk [Term|Terms] ETarget LTarget TVar CtxF CondProofs [Term'|Terms'] [Proof|Proofs] :-
+    arg-context-from-position CtxF TermsOk Terms CtxTermF,
+    rewrite-identities.aux Term ETarget LTarget TVar CtxTermF CondProofs Term' Proof,
+    std.append TermsOk [Term'] TermsOk',
+    rewrite-identities.args.aux TermsOk' Terms ETarget LTarget TVar CtxF CondProofs Terms' Proofs.
+
+rewrite-identities.args.aux _ [] _ _ _ _ _ [] [].

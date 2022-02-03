@@ -1,0 +1,100 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% simplify the proof before making a Coq term from it, preventing the final Coq proof term from
+% being a useless composition of identities
+pred minimise i:proof, o:proof.
+
+minimise (proof.forall T PF CoqPF) (proof.forall T PF' CoqPF) :-
+  !, pi x\ decl x _ T => minimise (PF x) (PF' x).
+
+minimise (proof.forall2 T U PF CoqPF) (proof.forall2 T U PF' CoqPF) :-
+  !,
+  pi x\ decl x _ T =>
+    pi y\ decl y _ (U x) =>
+      minimise (PF x y) (PF' x y).
+
+minimise (proof.lift-logic ML Ps) MinProof :-
+  !, std.map Ps minimise Ps',
+  if (std.map Ps' (p\ p'\ sigma T\ p = proof.none T, p' = {{ @id lp:T }}) Ps'') (
+    coq.typecheck (app [ML|Ps'']) {{ lp:A -> lp:A }} ok,
+    MinProof = proof.none A
+  ) (
+    MinProof = proof.lift-logic ML Ps'
+  ).
+
+minimise (proof.trans TVar Ps) MinProof :-
+  !, std.map Ps minimise Ps1,
+  std.filter Ps1 (p\ not (p = proof.none _)) Ps2,
+  if (Ps2 = []) (
+    Ps1 = [proof.none T|_],
+    MinProof = proof.none T
+  ) (if (Ps2 = [P]) (
+    MinProof = P
+  ) (
+    MinProof = proof.trans TVar Ps2
+  )).
+
+minimise Proof Proof.
+
+% make a Coq term from a structured elpi proof
+pred build i:proof, o:term.
+
+build Proof Term :-
+  minimise Proof MinProof,
+  build.aux MinProof Term.
+
+pred build.aux i:proof, o:term.
+
+build.aux (proof.none T) {{ @id lp:T }}.
+
+build.aux (proof.of-term Term) Term.
+
+build.aux (proof.forall T PF CoqProofF) CoqProof :-
+  pi x\ decl x _ T =>
+    build.aux (PF x) (CoqPF x),
+    if (CoqPF x = {{ id }}) (
+      copy (app [{{ id }}, X]) X => copy (CoqProofF CoqPF) CoqProof
+    ) (
+      CoqProof = CoqProofF CoqPF
+    ).
+
+build.aux (proof.forall2 T U PF CoqProofF) CoqProof :-
+  pi x\ decl x _ T =>
+    pi y\ decl y _ (U x) =>
+      build.aux (PF x y) (CoqPF x y),
+      if (CoqPF x y = {{ id }}) (
+        copy (app [{{ id }}, X]) X => copy (CoqProofF CoqPF) CoqProof
+      ) (
+        CoqProof = CoqProofF CoqPF
+      ).
+
+build.aux (proof.trans TVar Ps) Proof :-
+  if (TVar = covariant) (
+    std.rev Ps Ps'
+  ) (
+    Ps' = Ps
+  ),
+  std.map Ps' build.aux Impls,
+  std.filter Impls (i\ not (i = {{ id }})) Impls',
+  compose-all Impls' Proof.
+
+build.aux (proof.lift-eq TVar CtxF EqProof) Proof :-
+  coq.typecheck EqProof {{ @eq lp:T lp:X lp:Y }} ok,
+  Ctx = fun _ T CtxF,
+  if (TVar = covariant) (
+    Proof = app [{{ @lift_eq_to_impl }}, T, X, Y, Ctx, EqProof]
+  ) (
+    Proof = app [{{ @lift_eq_to_impl_contra }}, T, X, Y, Ctx, EqProof]
+  ).
+
+build.aux (proof.lift-logic LProof ArgProofs) (app [LProof|CoqArgProofs]) :-
+  std.map ArgProofs build.aux CoqArgProofs.

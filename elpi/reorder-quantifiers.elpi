@@ -1,0 +1,79 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% reorder quantifiers in the hypotheses of the goal and give an implication proof
+% Goal = H1 -> ... -> Hn -> Conclusion
+% for each Hi, reorder the quantifiers and hypotheses in Hi into a Hi' such that
+%   if Hi = forall (x1 : T1), H1 -> H2 -> forall (x2 : T2) (x3 : T3), H3 -> ... -> ti
+%   then Hi' = forall (x1 : T1) ... (xn : Tn), H1 -> ... -> Hn -> ti
+pred reorder-goal i:term, o:term.
+
+reorder-goal (prod N T F as Goal) (fun _ _ h\ fun N T x\ app [ProofF x, app [h, x]]) :-
+  not (Goal = {{ _ -> _ }}), !,
+  pi x\ reorder-goal (F x) (ProofF x).
+
+reorder-goal Goal (fun _ _ ProofF) :-
+  pop-all Goal Hyps _,
+  reorder-hyp.list Hyps HProofs,
+  pi h\ make-combinator h HProofs [] (ProofF h).
+
+% make-combinator H [p1, ..., pn] [] P
+% P = fun H h1 ... hn => H (p1 h1) ... (pn hn)
+pred make-combinator i:term, i:list term, i:list term, o:term.
+
+make-combinator Head [] RArgs (app [Head|Args]) :-
+  std.rev RArgs Args.
+
+make-combinator Head [P|HProofs] Args (fun _ _ F) :-
+  pi a\ make-combinator Head HProofs [app [P, a]|Args] (F a).
+
+pred reorder-hyp.list i:list term, o:list term.
+
+reorder-hyp.list [] [].
+
+reorder-hyp.list [H|Hyps] [fun _ _ ProofF|Proofs] :-
+  pi h\ reorder-hyp H h 0 [] [] [] (ProofF h), !,
+  reorder-hyp.list Hyps Proofs.
+
+% reorder-hyp Term Head N Hyps Vars Mixed Proof
+% Term: the term to reorder, that is putting quantifiers in prenex form
+% e.g. (A -> forall x, B -> C -> forall y, D) becomes (forall x y, A -> B -> C -> D)
+% Head: the term that will play the role of H in the proof below
+% N: a variable counter used to create temporary placeholder terms
+% Hyps: we add one variable there everytime we find subterms like A or B above in the goal
+% Vars: we add one variable there everytime we find subterms like x or y above in the goal
+% Mixed: we add one variable there everytime we find a subterm in the goal
+% Proof looks like: fun H x y a b c => H a x b c y
+type c int -> term.
+copy (c N) (c N).
+pred reorder-hyp i:term, i:term, i:int, i:list term, i:list term, i:list term, o:term.
+
+reorder-hyp {{ _ -> lp:Term }} Head N Hyps Vars Mixed Proof :- !,
+  N1 is N + 1,
+  reorder-hyp Term Head N1 [c N|Hyps] Vars [c N|Mixed] Proof.
+
+reorder-hyp (prod _ _ F) Head N Hyps Vars Mixed Proof :- !,
+  N1 is N + 1,
+  reorder-hyp (F (c N)) Head N1 Hyps [c N|Vars] [c N|Mixed] Proof.
+
+reorder-hyp _ Head _ Hyps Vars RMixed Proof :-
+  std.rev RMixed Mixed,
+  std.append Hyps Vars Vars',
+  bind-back Vars' (app [Head|Mixed]) Proof.
+
+pred bind-back i:list term, i:term, o:term.
+% bind-back Xs Term Term'
+% beta-abstracts all Xs in Term to give Term'
+bind-back [] Term Term.
+
+bind-back [X|Xs] Term Term' :-
+  pi x\ copy X x => copy Term (F x), !,
+  bind-back Xs (fun _ _ F) Term'.

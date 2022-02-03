@@ -1,0 +1,7 @@
+-Q theories Trakt
+
+theories/InternalProofs.v
+theories/Database.v
+theories/Tactic.v
+theories/Commands.v
+theories/Trakt.v

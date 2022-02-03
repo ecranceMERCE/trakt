@@ -1,0 +1,58 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pred preprocess-extra i:term, i:goal-ctx, i:term, i:term, i:type-variance, i:prop, o:term, o:term.
+
+preprocess-extra Term Context ETarget LTarget TVar MustGeneralise Term' TypedFinalProof :- std.do! [
+    % 1. make a full term
+    coq.elaborate-skeleton Term _ Term1 ok,
+
+    % 2. generalise
+    if (MustGeneralise) (
+      generalise-free-variables Term1 ETarget Context Term2 GenProofF
+    ) (
+      Term2 = Term1,
+      GenProofF = (p\ p)
+    ),
+
+    % 3. put all logic in Prop if the target is Prop
+    if (LTarget = {{ Prop }}) (
+      bool-to-prop Term2 TVar Term3 B2PProof,
+      build B2PProof B2PCoqProof,
+      if (Term3 = Term2) (
+        B2PProofF = (p\ p)
+      ) (
+        B2PProofF = (p\ app [B2PCoqProof, p])
+      )
+    ) (
+      Term3 = Term2,
+      B2PProofF = (p\ p)
+    ),
+
+    % 4. launch preprocessing
+    preprocess Term3 ETarget LTarget TVar (t\ t) Term4 Proof,
+
+    % 5. build Coq terms
+    clear-prod2 Term4 Term',
+    build Proof CoqProof,
+    if (Term' = Term1) (
+      TypedFinalProof = {{ @id lp:Term1 }}
+    ) (std.do! [
+      clear-prod2 CoqProof CleanCoqProof,
+      coq.elaborate-skeleton CleanCoqProof _ CleanTypedCoqProof ok,
+      if (TVar = covariant) (
+        FinalProof = fun _ Term' (p\ GenProofF (B2PProofF (app [CleanTypedCoqProof, p])))
+      ) (
+        FinalProof = fun _ Term1 (p\ app [CleanTypedCoqProof, B2PProofF (GenProofF p)])
+      ),
+      coq.elaborate-skeleton FinalProof _ TypedFinalProof ok
+    ])
+  ].

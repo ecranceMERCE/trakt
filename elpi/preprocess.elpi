@@ -1,0 +1,385 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% preprocess a goal, with a target embedding type and a target logic type, trying to express
+% as many subterms as possible in these types
+pred preprocess
+  i:term, % Coq term to preprocess
+  i:term, % target embedding type (e.g. Z for arithmetic)
+  i:term, % target logic expression type (bool or Prop)
+  i:type-variance, % direction of the implication proof (NewGoal -> OldGoal or OldGoal -> NewGoal)
+  i:(term -> term), % context of the current term (important for rewrite proofs)
+  o:term, % preprocessed Coq term
+  o:proof. % proof of preprocessing (implication proof)
+
+% NB:
+% - the type variance parameter allows generating correct proofs when handling terms in
+%   contravariant positions of logical connectors
+% - the context parameter allows generating rewrite proofs for subterms thanks to eq_rect
+%   (eq_rect asks for a context for the term to be rewritten)
+
+% special case for logical implication because it does not change
+preprocess {{ lp:A -> lp:B }} ETarget LTarget TVar _ {{ lp:A' -> lp:B' }} Proof :-
+  coq.typecheck A {{ Prop }} ok,
+  coq.typecheck B {{ Prop }} ok,
+  !, invert-variance TVar OppositeTVar,
+  preprocess A ETarget LTarget OppositeTVar (t\ t) A' ProofA,
+  preprocess B ETarget LTarget TVar (t\ t) B' ProofB,
+  if (TVar = covariant) (
+    Proof = proof.lift-logic (app [{{ @impl_morph_impl }}, A, B, A', B']) [ProofA, ProofB]
+  ) (
+    Proof = proof.lift-logic (app [{{ @impl_morph_impl }}, A', B', A, B]) [ProofA, ProofB]
+  ).
+
+preprocess (prod N T F) ETarget LTarget TVar _ OutTerm Proof :-
+  !, pi x\ decl x _ T => (
+    % first we preprocess the quantified term
+    preprocess (F x) ETarget LTarget TVar (t\ t) (F' x) (PF x),
+    targetify-type ETarget T T',
+    if (T' = T) (
+      % the type of the quantified variable will not change
+      % forall N : T, F' N
+      % the proof is just lifting the underlying proof to the quantified terms
+      OutTerm = prod2 N T T F',
+      if (PF x = proof.none (A_ x)) (
+        Proof = proof.none (prod N T F)
+      ) (
+        if (TVar = covariant) (
+          ProofF = (p\ {{ fun (H : lp:{{ prod N T F' }}) (x : lp:T) => lp:(p x) (H x) }})
+        ) (
+          ProofF = (p\ {{ fun (H : lp:{{ prod N T F }}) (x : lp:T) => lp:(p x) (H x) }})
+        ),
+        Proof = proof.forall T PF ProofF
+      )
+    ) (
+      % the type of the variable will change
+      % forall N' : T', ? -> F'' N'
+      % according to the new type, a condition might be needed
+      make-fun-type T FunT,
+      make-condition-type FunT ETarget LTarget CondFOpt,
+      % F'' x = F' (app [E, x]) (E being the embedding function)
+      generalise x (F' x) FunT ETarget F'',
+      coq.name-suffix N "'" N',
+      if (CondFOpt = some CondF) (
+        % a condition is needed for this embedding
+        OutTerm = prod2 N' T T' (t\ {{ lp:{{ CondF t }} -> lp:{{ F'' t }} }})
+      ) (
+        OutTerm = prod2 N' T T' F''
+      ),
+      if (TVar = covariant) (
+        % in a covariant position, the proof is also a lift but here we also have an embedded
+        % variable and possibly a condition proof to add
+        make-embedding-context FunT ETarget EF,
+        make-condition-proof FunT ETarget LTarget CondProofFOpt,
+        if (CondProofFOpt = some CondProofF) (
+          if (PF x = proof.none (B_ x)) (
+            Proof = proof.of-term {{
+              fun (H' : lp:{{ prod N' T' (x'\ {{ lp:{{ CondF x' }} -> lp:{{ F'' x' }} }}) }})
+                  (x : lp:T) =>
+                    H' lp:(EF x) lp:(CondProofF x)
+            }}
+          ) (
+            ProofF = (p\ {{
+              fun (H' : lp:{{ prod N' T' (x'\ {{ lp:{{ CondF x' }} -> lp:{{ F'' x' }} }}) }})
+                  (x : lp:T) =>
+                    lp:(p x) (H' lp:(EF x) lp:(CondProofF x))
+            }}),
+            Proof = proof.forall T PF ProofF
+          )
+        ) (
+          if (PF x = proof.none (C_ x)) (
+            Proof = proof.of-term {{
+              fun (H' : lp:{{ prod N' T' F'' }}) (x : lp:T) => H' lp:(EF x)
+            }}
+          ) (
+            ProofF =
+              (p\ {{ fun (H' : lp:{{ prod N' T' F'' }}) (x : lp:T) => lp:(p x) (H' lp:(EF x)) }}),
+            Proof = proof.forall T PF ProofF
+          )
+        )
+      ) (
+        % in the contravariant case, no condition proof is needed because we use the partial
+        % inverse lemmas, but some embedding identities must be removed
+        make-reverse-embedding-context FunT ETarget REF,
+        std.map.make cmp_term EmptyMap,
+        pi x'\ decl x' _ T' => (
+          beta-reduce (F' (REF x')) (BF x'),
+          if (CondFOpt = some CondF) (
+            % there will be a condition in the final proof
+            pi c\ decl c _ (CondF x') => (
+              std.map.add x' c EmptyMap (CondProofs x' c),
+              rewrite-identities (BF x') ETarget LTarget (CondProofs x' c) (RwProofC x' c),
+              build (RwProofC x' c) (CoqRwProofC x' c)
+            ),
+            if (CoqRwProofC x' c = {{ id }}) (
+              ProofF = (p\ {{
+                fun (H : lp:{{ prod N T F }}) (x' : lp:T') (_ : lp:(CondF x')) =>
+                  lp:{{ p (REF {{ x' }}) }} (H lp:(REF x')) }})
+            ) (
+              ProofF = (p\ {{
+                fun (H : lp:{{ prod N T F }}) (x' : lp:T') (HCx' : lp:(CondF x')) =>
+                  lp:{{ CoqRwProofC {{ x' }} {{ HCx' }} }}
+                    (lp:{{ p (REF {{ x' }}) }} (H lp:(REF x'))) }})
+            )
+          ) (
+            % no condition in the final proof
+            rewrite-identities (BF x') ETarget LTarget EmptyMap (RwProof x'),
+            build (RwProof x') (CoqRwProof x'),
+            if (CoqRwProof x' = {{ id }}) (
+              ProofF = (p\ {{
+                fun (H : lp:{{ prod N T F }}) (x' : lp:T') =>
+                  lp:{{ p (REF {{ x' }}) }} (H lp:(REF x')) }})
+            ) (
+              ProofF = (p\ {{
+                fun (H : lp:{{ prod N T F }}) (x' : lp:T') =>
+                  lp:(CoqRwProof x') (lp:{{ p (REF {{ x' }}) }} (H lp:(REF x'))) }})
+            )
+          )
+        ),
+        Proof = proof.forall T PF ProofF
+      )
+    )
+  ).
+
+preprocess {{ True }} _ LTarget TVar _ OutTerm Proof :-
+  !, if (LTarget = {{ Prop }}) (
+    OutTerm = {{ True }},
+    Proof = proof.none {{ True }}
+  ) (
+    OutTerm = {{ @eq bool true true }},
+    if (TVar = covariant) (
+      Proof = proof.of-term {{ @refl_true_impl bool true }}
+    ) (
+      Proof = proof.of-term {{ @refl_true_impl_contra bool true }}
+    )
+  ).
+
+preprocess {{ False }} _ LTarget TVar _ OutTerm Proof :-
+  !, if (LTarget = {{ Prop }}) (
+    OutTerm = {{ False }},
+    Proof = proof.none {{ False }}
+  ) (
+    OutTerm = {{ @eq bool false true }},
+    if (TVar = covariant) (
+      Proof = proof.of-term {{ false_bool_impl }}
+    ) (
+      Proof = proof.of-term {{ false_bool_impl_contra }}
+    )
+  ).
+
+% in the (RE (E Term)) case, we want to preprocess the subterm so that E is pushed
+% to the leaves of the AST as much as possible, and RE will be part of the definition of the
+% new function right above the current term (so the one in CtxF)
+preprocess (app [RE, app [E, Term]]) ETarget LTarget TVar CtxF (app [RE, Term']) Proof :-
+  embedding _ ETarget E RE _ _ _ _ _, !,
+  preprocess (app [E, Term]) ETarget LTarget TVar (t\ CtxF (app [RE, t])) Term' Proof.
+
+% iff has a special case because argument positions have double variance
+preprocess {{ lp:A <-> lp:B }} ETarget LTarget TVar _ OutTerm Proof :- !, std.do! [
+  if (TVar = covariant) (Refl = {{ Booleqb_iff_impl }}) (Refl = {{ iff_Booleqb_impl }}),
+  invert-variance TVar OppositeTVar,
+  ArgTVars = [TVar, OppositeTVar, TVar, OppositeTVar],
+  preprocess.list [A, A, B, B] ETarget LTarget ArgTVars [A', _, B', _] ArgProofs,
+  if (
+    LTarget = {{ bool }},
+    remove-bool-cst-eq.list [A', A', B', B'] ArgTVars ArgProofs [Ab', _, Bb', _] ArgProofs'
+  ) (
+    OutTerm = {{ @eq bool (Bool.eqb lp:Ab' lp:Bb') true }},
+    ArgPreprocessingProof = proof.lift-logic {{ iff_impl_ind }} ArgProofs',
+    ReflectionProof = proof.of-term (app [Refl, Ab', Bb']),
+    Proof = proof.trans TVar [ArgPreprocessingProof, ReflectionProof]
+  ) (
+    OutTerm = {{ lp:A' <-> lp:B' }},
+    Proof = proof.lift-logic {{ iff_impl_ind }} ArgProofs
+  )
+].
+
+% logical connector
+preprocess (app [F|Args]) ETarget LTarget TVar _ OutTerm Proof :-
+  logical-connector F F' ArgTVars ImplMorph ReflB2P ReflP2B, !,
+  if (TVar = covariant) (
+    ArgTVars' = ArgTVars,
+    Refl = ReflB2P
+  ) (
+    % the connector is in a contravariant position, therefore the variance information
+    % that we retrieve from the database must be inverted
+    std.map ArgTVars invert-variance ArgTVars',
+    Refl = ReflP2B
+  ),
+  preprocess.list Args ETarget LTarget ArgTVars' ProcessedArgs ArgProofs,
+  if (
+    LTarget = {{ bool }},
+    remove-bool-cst-eq.list ProcessedArgs ArgTVars' ArgProofs ProcessedArgs' ArgProofs'
+  ) (
+    % logical target is bool
+    % we need to try to remove "= true" and "= false" from the boolean arguments
+    % otherwise we cannot replace the connector with its boolean version
+    OutTerm = {{ @eq bool lp:{{ app [F'|ProcessedArgs'] }} true }},
+    ArgPreprocessingProof = proof.lift-logic ImplMorph ArgProofs',
+    ReflectionProof = proof.of-term (app [Refl|ProcessedArgs']),
+    Proof = proof.trans TVar [ArgPreprocessingProof, ReflectionProof]
+  ) (
+    OutTerm = app [F|ProcessedArgs],
+    Proof = proof.lift-logic ImplMorph ArgProofs
+  ).
+
+% embedded (or not) function application (symbol)
+preprocess Term ETarget LTarget TVar CtxF Term' Proof :-
+  ((
+    Term = app [E, app [F|Args]],
+    embedding _ ETarget E _ _ _ _ _ _, !
+  ); (
+    Term = app [F|Args]
+  )),
+  ((
+    symbol F F' EqProof, !,
+    Args' = Args
+  ); (
+    conversion-allowed F,
+    symbol G F' EqProof,
+    coq.unify-eq F G ok, !,
+    Args' = Args
+  ); (
+    Args = [X|Args'], not (Args' = []),
+    symbol (app [F, X]) F' EqProof, !
+  ); (
+    Args = [X|Args'], not (Args' = []),
+    conversion-allowed F,
+    symbol G F' EqProof,
+    coq.unify-eq (app [F, X]) G ok
+  )), !,
+  EqRwProof = proof.lift-eq TVar CtxF (app [EqProof|Args']),
+  std.map Args' (try-add-forward-embedding ETarget) EmbeddedArgs,
+  preprocess.args
+    EmbeddedArgs ETarget LTarget TVar (ts\ CtxF (app [F'|ts])) ProcessedArgs ArgProofs,
+  beta-reduce-app (app [F'|ProcessedArgs]) Term',
+  Proof = proof.trans TVar [EqRwProof|ArgProofs].
+
+% function application (relation)
+preprocess (app [F|Args]) ETarget LTarget TVar CtxF OutTerm Proof :-
+  ((
+    relation F T LSource F' T' LTarget EquProof,
+    (T' = T ; T' = ETarget), !,
+    Args' = Args
+  ); (
+    conversion-allowed F,
+    relation R T LSource F' T' LTarget EquProof,
+    (T' = T ; T' = ETarget),
+    coq.unify-eq F R ok, !,
+    Args' = Args
+  ); (
+    Args = [X|Args'], not (Args' = []),
+    relation (app [F, X]) T LSource F' T' LTarget EquProof,
+    (T' = T ; T' = ETarget), !
+  ); (
+    Args = [X|Args'], not (Args' = []),
+    relation (app [F, X']) T LSource F' T' LTarget EquProof,
+    (T' = T ; T' = ETarget),
+    coq.unify-eq X X' ok
+  )), !,
+  RwLemma = app [EquProof|Args'],
+  std.map Args' (try-add-forward-embedding ETarget) EmbeddedArgs,
+  if (LSource = {{ bool }}, LTarget = {{ bool }}) (
+    % both relations are in bool so the lemma is an equality
+    RwProof = proof.lift-eq TVar CtxF RwLemma,
+    LogicCast = (x\ x)
+  ) (
+    % the lemma is an equivalence
+    coq.typecheck RwLemma {{ lp:A <-> lp:B }} ok,
+    if (TVar = covariant) (
+      RwProof = proof.of-term {{ @iffRL lp:A lp:B lp:RwLemma }}
+    ) (
+      RwProof = proof.of-term {{ @iffLR lp:A lp:B lp:RwLemma }}
+    ),
+    if (LTarget = {{ bool }}) (
+      LogicCast = (x\ {{ @eq bool lp:x true }})
+    ) (
+      LogicCast = (x\ x)
+    )
+  ),
+  preprocess.args
+    EmbeddedArgs ETarget LTarget TVar (ts\ CtxF (LogicCast (app [F'|ts]))) ProcessedArgs ArgProofs,
+  beta-reduce-app (app [F'|ProcessedArgs]) TermNotCast,
+  OutTerm = LogicCast TermNotCast,
+  Proof = proof.trans TVar [RwProof|ArgProofs].
+
+% embedded symbol of arity 0
+preprocess (app [E, X]) ETarget _ TVar CtxF X' Proof :-
+  embedding _ ETarget E _ _ _ _ _ _,
+  ((
+    symbol X X' EqProof, !
+  ); (
+    conversion-allowed {term-head X},
+    symbol Y X' EqProof,
+    coq.unify-eq X Y ok
+  )), !,
+  Proof = proof.lift-eq TVar CtxF EqProof.
+
+% embedded variable or constant
+preprocess (app [E, X]) ETarget _ _ CtxF (app [E, X]) (proof.none (CtxF (app [E, X]))) :-
+  embedding _ ETarget E _ _ _ _ _ _,
+  ( ( decl X _ _, ! )
+  ; ( def X _ _ _, ! )
+  ; ( X = global (const _), ! )
+  ; ( X = global (indc _), ! )
+  ;   X = app [global (indc _)|_]
+  ), !.
+
+% embedded function application (unknown)
+preprocess (app [E, app [F|Args]]) ETarget LTarget TVar CtxF (app [E, Term]) Proof :-
+    embedding _ ETarget E _ _ _ _ _ _, !,
+    CtxF' = (ts\ CtxF (app [E, app [F|ts]])),
+    try-add-embedding-identity.list ETarget Args TVar CtxF' EmbeddedArgs ArgEmbeddingIdProofs,
+    preprocess.args EmbeddedArgs ETarget LTarget TVar CtxF' ProcessedArgs ArgProofs,
+    std.append ArgEmbeddingIdProofs ArgProofs Proofs,
+    Proof = proof.trans TVar Proofs,
+    Term = app [F|ProcessedArgs].
+
+% function application (unknown)
+preprocess (app [F|Args]) ETarget LTarget TVar CtxF (app [F|ProcessedArgs]) Proof :-
+    !, CtxF' = (ts\ CtxF (app [F|ts])),
+    try-add-embedding-identity.list ETarget Args TVar CtxF' EmbeddedArgs ArgEmbeddingIdProofs,
+    preprocess.args EmbeddedArgs ETarget LTarget TVar CtxF' ProcessedArgs ArgProofs,
+    std.append ArgEmbeddingIdProofs ArgProofs Proofs,
+    Proof = proof.trans TVar Proofs.
+
+% other terms are left untouched
+preprocess Term _ _ _ CtxF Term (proof.none (CtxF Term)).
+
+% fold preprocess, empty context and a specific type variance for each argument
+pred preprocess.list
+  i:(list term), i:term, i:term, i:(list type-variance), o:(list term), o:(list proof).
+
+preprocess.list [Term|Terms] ETarget LTarget [TVar|TVars] [Term'|Terms'] [Proof|Proofs] :-
+  preprocess Term ETarget LTarget TVar (t\ t) Term' Proof,
+  preprocess.list Terms ETarget LTarget TVars Terms' Proofs.
+
+preprocess.list [] _ _ [] [] [].
+
+% fold preprocess, same function application context for all arguments
+pred preprocess.args
+  i:(list term), i:term, i:term, i:type-variance, i:((list term) -> term),
+  o:(list term), o:(list proof).
+
+preprocess.args Terms ETarget LTarget TVar CtxF Terms' Proofs :-
+  preprocess.args.aux [] Terms ETarget LTarget TVar CtxF Terms' Proofs.
+
+pred preprocess.args.aux
+  i:(list term), i:(list term), i:term, i:term, i:type-variance, i:((list term) -> term),
+  o:(list term), o:(list proof).
+
+preprocess.args.aux TermsOk [Term|Terms] ETarget LTarget TVar CtxF [Term'|Terms'] [Proof|Proofs] :-
+    arg-context-from-position CtxF TermsOk Terms CtxTermF,
+    preprocess Term ETarget LTarget TVar CtxTermF Term' Proof,
+    std.append TermsOk [Term'] TermsOk',
+    preprocess.args.aux TermsOk' Terms ETarget LTarget TVar CtxF Terms' Proofs.
+
+preprocess.args.aux _ [] _ _ _ _ [] [].

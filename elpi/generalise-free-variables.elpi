@@ -1,0 +1,82 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% generalise a term containing variables from the context so that the goal is closed
+pred generalise-free-variables
+  i:term, % T: the term to generalise
+  i:term, % the target embedding type
+  i:goal-ctx,
+  o:term, % T': generalised term
+  o:(term -> term). % proof that T' -> T so that we can change the goal to T'
+                    % NB: elpi function because it builds on another proof of type T -> U
+
+generalise-free-variables Term ETarget Context GTerm ProofF :-
+  find-free-variables Term ETarget Context FV FVTypes FVNames,
+  if (FV = []) (
+    GTerm = Term,
+    ProofF = (p\ p)
+  ) (
+    bind-forall.list Term FV FVTypes FVNames GTerm,
+    ProofF = (p\ app [p|FV])
+  ).
+
+% take a list of triples defining a variable and quantify these variables before the input term
+pred bind-forall.list i:term, i:(list term), i:(list term), i:(list name), o:term.
+
+bind-forall.list Term [] [] [] Term.
+
+bind-forall.list Term [V|Vs] [T|Ts] [N|Ns] (prod N T F) :-
+  bind-forall.list Term Vs Ts Ns GTerm,
+  pi x\ copy V x => copy GTerm (F x).
+
+% find variables in a goal that are not directly bound in this goal but declared in the context
+pred find-free-variables i:term, i:term, i:goal-ctx, o:(list term), o:(list term), o:(list name).
+
+find-free-variables Term ETarget Context FV FVTypes FVNames :-
+  find-free-variables.aux Term ETarget Context FVInfoSet,
+  std.set.elements FVInfoSet FVInfoList,
+  unzip3 FVInfoList FV FVTypes FVNames.
+
+pred find-free-variables.aux i:term, i:term, i:goal-ctx, o:(std.set (pair term (pair term name))).
+
+find-free-variables.aux {{ lp:A -> lp:B }} ETarget Context FVInfoSet :-
+  !, find-free-variables.aux A ETarget Context FVInfoSetA,
+  find-free-variables.aux B ETarget Context FVInfoSetB,
+  set-merge FVInfoSetA FVInfoSetB FVInfoSet.
+
+find-free-variables.aux (prod _ T F) ETarget Context FVInfoSet' :-
+  !, pi x\ decl x _ T => find-free-variables.aux (F x) ETarget Context (FVInfoSet x),
+  std.set.remove (pr x _) (FVInfoSet x) FVInfoSet'.
+
+find-free-variables.aux (app [F|Args]) ETarget Context FVInfoSet' :-
+  !, std.map Args (a\ s\ find-free-variables.aux a ETarget Context s) FVInfoSets,
+  set-merge.list FVInfoSets FVInfoSet,
+  if (
+    (std.mem! Context (decl F N T) ; std.mem! Context (def F N T _)),
+    targetify-type ETarget T T',
+    not (T = T')
+  ) (
+    std.set.add (pr F (pr T N)) FVInfoSet FVInfoSet'
+  ) (
+    FVInfoSet' = FVInfoSet
+  ).
+
+find-free-variables.aux X ETarget Context FVInfoSet :-
+  std.set.make cmp_term EmptySet,
+  if (
+    (std.mem! Context (decl X N T) ; std.mem! Context (def X N T _)),
+    targetify-type ETarget T T',
+    not (T = T')
+  ) (
+    std.set.add (pr X (pr T N)) EmptySet FVInfoSet
+  ) (
+    FVInfoSet = EmptySet
+  ).

@@ -1,0 +1,309 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pred add-embedding i:(list argument).
+
+add-embedding Args :-
+  std.assert! (
+    ( Args = [str "{",
+        str "T", str ":=", trm T, str ";",
+        str "T'", str ":=", trm T', str ";",
+        str "embed", str ":=", trm Embed, str ";",
+        str "embed_inv", str ":=", trm EmbedInv, str ";",
+        str "embed_then_inv_id", str ":=", trm EmbedThenInvId, str ";",
+        str "inv_then_embed_cond_id", str ":=", trm InvThenEmbedCondId, str ";",
+        str "cond_proof", str ":=", trm CondProof,
+      str "}"], !,
+      CondProofOpt = some CondProof )
+  ; ( Args = [str "{",
+        str "T", str ":=", trm T, str ";",
+        str "T'", str ":=", trm T', str ";",
+        str "embed", str ":=", trm Embed, str ";",
+        str "embed_inv", str ":=", trm EmbedInv, str ";",
+        str "embed_then_inv_id", str ":=", trm EmbedThenInvId, str ";",
+        str "inv_then_embed_cond_id", str ":=", trm InvThenEmbedCondId,
+      str "}"], !,
+      CondProofOpt = none )
+  ; ( Args = [
+        trm T, trm T', trm Embed, trm EmbedInv, trm EmbedThenInvId,
+        trm InvThenEmbedCondId, trm CondProof
+      ], !,
+      CondProofOpt = some CondProof )
+  ; ( Args = [trm T, trm T', trm Embed, trm EmbedInv, trm EmbedThenInvId, trm InvThenEmbedCondId],
+      CondProofOpt = none )
+  ) {std.string.concat "\n" [
+    "command syntax error",
+    "usage: Trakt Add Embedding",
+    "         (?T) (?T') (?embed) (?embed_inv) (?embed_then_inv_id)",
+    "         (?inv_then_embed_cond_id) [(?cond) (?cond_proof)]",
+    "     | Trakt Add Embedding {",
+    "         T := (?T); T' := (?T');",
+    "         embed := (?embed); embed_inv := (?embed_inv);",
+    "         embed_then_inv_id := (?embed_then_inv_id);",
+    "         inv_then_embed_cond_id := (?inv_then_embed_cond_id)",
+    "         [; cond_proof := (?cond_proof)]",
+    "       }", "", ""
+  ]},
+  std.assert-ok! (coq.typecheck T _) "T is ill-typed",
+  std.assert-ok! (coq.typecheck T' _) "T' is ill-typed",
+  std.assert-ok! (coq.elaborate-skeleton Embed EmbedT EmbedE) "embed is ill-typed",
+  std.assert-ok! (coq.elaborate-skeleton EmbedInv EmbedInvT EmbedInvE) "embed_inv is ill-typed",
+  std.assert! (EmbedT = {{ lp:T -> lp:T' }}) {std.string.concat "" [
+    "embed type mismatch\n",
+    "expected: ", {coq.term->string {{ lp:T -> lp:T' }}},
+    "\ngot: ", {coq.term->string EmbedT}, "\n\n"
+  ]},
+  std.assert-ok! (coq.unify-eq EmbedInvT {{ lp:T' -> lp:T }}) {std.string.concat "" [
+    "embed_inv type mismatch\n",
+    "expected: ", {coq.term->string {{ lp:T' -> lp:T }}},
+    "\ngot: ", {coq.term->string EmbedInvT}, "\n\n"
+  ]},
+  std.assert-ok! (coq.elaborate-skeleton EmbedThenInvId EmbedThenInvIdT EmbedThenInvIdE)
+    "embed_then_inv_id is ill-typed",
+  ExpectedEmbedThenInvIdT = {{ forall (x : lp:T), @eq lp:T x (lp:EmbedInv (lp:Embed x)) }},
+  std.assert-ok! (coq.unify-eq EmbedThenInvIdT ExpectedEmbedThenInvIdT) {std.string.concat "" [
+    "embed_then_inv_id type mismatch\n",
+    "expected: ", {coq.term->string ExpectedEmbedThenInvIdT},
+    "\ngot: ", {coq.term->string EmbedThenInvIdT}, "\n\n"
+  ]},
+  std.assert-ok!
+    (coq.elaborate-skeleton InvThenEmbedCondId InvThenEmbedCondIdT InvThenEmbedCondIdE)
+    "inv_then_embed_cond_id is ill-typed",
+  if (CondProofOpt = some CondProof) (
+    std.assert-ok! (coq.elaborate-skeleton CondProof CondProofT CondProofE)
+      "cond_proof is ill-typed",
+    std.assert! (
+      CondProofT = prod _ T CondF,
+      pi t\ decl t _ T => coq.typecheck (CondF t) {{ Prop }} ok
+    ) {std.string.concat "" [
+      "cond_proof type mismatch\n",
+      "expected: forall (x : ", {coq.term->string T}, "), ",
+        "(?Condition : ", {coq.term->string T}, " -> Prop) x",
+      "\ngot: ", {coq.term->string CondProofT}, "\n\n"
+    ]},
+
+    ExpectedEmbedThenInvIdT = {{ forall (x : lp:T), @eq lp:T x (lp:EmbedInv (lp:Embed x)) }},
+    std.assert-ok! (coq.unify-eq EmbedThenInvIdT ExpectedEmbedThenInvIdT) {std.string.concat "" [
+      "embed_then_inv_id type mismatch\n",
+      "expected: ", {coq.term->string ExpectedEmbedThenInvIdT},
+      "\ngot: ", {coq.term->string EmbedThenInvIdT}, "\n\n"
+    ]},
+    pi y\ pi z\ copy (app [Embed, y]) z => copy (CondF y) (CondFE z),
+    ExpectedInvThenEmbedCondIdT =
+      {{ forall (x' : lp:T'), lp:(CondFE x') -> @eq lp:T' (lp:Embed (lp:EmbedInv x')) x' }},
+    pi x'\
+      if (CondFE x' = {{ @eq bool lp:{{ BoolCondF_ x' }} true }}) (
+        LT = {{ bool }}
+      ) (
+        LT = {{ Prop }}
+      ),
+    std.assert-ok! (coq.unify-eq InvThenEmbedCondIdT ExpectedInvThenEmbedCondIdT)
+      {std.string.concat "" [
+        "inv_then_embed_cond_id type mismatch\n",
+        "expected: ", {coq.term->string ExpectedInvThenEmbedCondIdT},
+        "\ngot: ", {coq.term->string InvThenEmbedCondIdT}, "\n\n"
+      ]},
+    coq.elpi.accumulate _ "embeddings.db" (clause _ _
+      (embedding T T' EmbedE EmbedInvE EmbedThenInvIdE InvThenEmbedCondIdE
+        (some LT) (some CondProofT) (some CondProofE)))
+  ) (
+    ExpectedInvThenEmbedCondIdT =
+      {{ forall (x' : lp:T'), @eq lp:T' (lp:Embed (lp:EmbedInv x')) x' }},
+    std.assert-ok! (coq.unify-eq InvThenEmbedCondIdT ExpectedInvThenEmbedCondIdT)
+      {std.string.concat "" [
+        "inv_then_embed_cond_id type mismatch\n",
+        "expected: ", {coq.term->string ExpectedInvThenEmbedCondIdT},
+        "\ngot: ", {coq.term->string InvThenEmbedCondIdT}, "\n\n"
+      ]},
+    coq.elpi.accumulate _ "embeddings.db" (clause _ _
+      (embedding T T' EmbedE EmbedInvE EmbedThenInvIdE InvThenEmbedCondIdE none none none))
+  ).
+
+pred add-symbol i:(list argument).
+
+add-symbol Args :-
+  std.assert! (
+    ( Args = [str "{",
+        str "S", str ":=", trm S, str ";",
+        str "S'", str ":=", trm S', str ";",
+        str "assoc_S_S'", str ":=", trm Proof,
+      str "}"], ! )
+  ; Args = [trm S, trm S', trm Proof]
+  ) {std.string.concat "\n" [
+    "command syntax error",
+    "usage: Trakt Add Symbol (?S) (?S') (?assoc_S_S')",
+    "     | Trakt Add Symbol { S := (?S); S' := (?S');",
+    "                          assoc_S_S' := (?assoc_S_S') }", "", ""
+  ]},
+  std.assert-ok! (coq.elaborate-skeleton S T SE) "S is ill-typed",
+  std.assert-ok! (coq.elaborate-skeleton S' T' SE') "S' is ill-typed",
+  std.assert-ok! (coq.elaborate-skeleton Proof ProofT ProofE) "Proof is ill-typed",
+  make-fun-type T FT,
+  make-fun-type T' FT',
+  make-expected-type-symbol SE SE' FT FT' ExpectedProofT,
+  std.assert! (coq.unify-eq ProofT ExpectedProofT ok) {std.string.concat "" [
+    "Proof type mismatch\n",
+    "expected: ", {coq.term->string ExpectedProofT},
+    "\ngot: ", {coq.term->string ProofT}, "\n\n"
+  ]},
+  coq.elpi.accumulate _ "symbols.db"
+    (clause _ _ (symbol SE SE' ProofE)).
+
+pred make-expected-type-symbol i:term, i:term, i:coqfuntype, i:coqfuntype, o:term.
+
+make-expected-type-symbol S S' (pr OutT InTs) (pr OutT' InTs') T :-
+  make-expected-type-symbol.aux S S' OutT OutT' InTs InTs' [] [] T.
+
+pred make-expected-type-symbol.aux
+  i:term, % S: source symbol
+  i:term, % S': target symbol
+  i:term, % output type of S
+  i:term, % output type of S'
+  i:(list term), % input types of S
+  i:(list term), % input types of S'
+  i:(list term), % variables created so that we can talk about S and S' in a fully applied way
+                 % (to state the embedding lemma about a function f taking 2 arguments, we need to
+                 % introduce 2 variables: the lemma has type forall x y, ...)
+  i:(list term), % the same variables with embedding functions added where possible
+  o:term.
+
+make-expected-type-symbol.aux S S' OutT OutT' [] [] [] _ T :-
+  !, if (( embedding OutT OutT' E _ _ _ _ _ _, ! )
+    ; ( coq.unify-eq OutT COutT ok,
+        coq.unify-eq OutT' COutT' ok,
+        embedding COutT COutT' E _ _ _ _ _ _ )) (
+    T = {{ lp:E lp:S = lp:S' }}
+  ) (
+    T = {{ lp:S = lp:S' }}
+  ).
+
+make-expected-type-symbol.aux S S' OutT OutT' [] [] RVars REVars T :-
+  std.rev RVars Vars,
+  std.rev REVars EVars,
+  !, if (( embedding OutT OutT' E _ _ _ _ _ _, ! )
+    ; ( coq.unify-eq OutT COutT ok,
+        coq.unify-eq OutT' COutT' ok,
+        embedding COutT COutT' E _ _ _ _ _ _ )) (
+    T = {{ lp:{{ app [E, app [S|Vars]] }} = lp:{{ app [S'|EVars] }} }}
+  ) (
+    T = {{ lp:{{ app [S|Vars] }} = lp:{{ app [S'|EVars] }} }}
+  ).
+
+make-expected-type-symbol.aux
+  S S' OutT OutT' [InT|InTs] [InT'|InTs'] Vars EVars (prod _ InT TF) :-
+    if (( embedding InT InT' E _ _ _ _ _ _, ! )
+      ; ( coq.unify-eq InT CInT ok,
+          coq.unify-eq InT' CInT' ok,
+          embedding CInT CInT' E _ _ _ _ _ _ )) (
+      EVars' = (x\ [app [E, x]|EVars])
+    ) (
+      EVars' = (x\ [x|EVars])
+    ),
+    pi x\ make-expected-type-symbol.aux S S' OutT OutT' InTs InTs' [x|Vars] (EVars' x) (TF x).
+
+pred add-relation i:(list argument).
+
+add-relation Args :-
+  std.assert! (
+    ( Args = [str "{",
+        str "R", str ":=", trm R, str ";",
+        str "R'", str ":=", trm R', str ";",
+        str "assoc_R_R'", str ":=", trm Proof,
+      str "}"], ! )
+  ; Args = [trm R, trm R', trm Proof]
+  ) {std.string.concat "\n" [
+    "command syntax error",
+    "usage: Trakt Add Relation (?R) (?R') (?assoc_R_R')",
+    "     | Trakt Add Relation { R := (?R); R' := (?R');",
+    "                            assoc_R_R' := (?assoc_R_R') }", "", ""
+  ]},
+  std.assert-ok! (coq.elaborate-skeleton R T RE) "R is ill-typed",
+  std.assert-ok! (coq.elaborate-skeleton R' T' RE') "R' is ill-typed",
+  std.assert-ok! (coq.elaborate-skeleton Proof ProofT ProofE) "Proof is ill-typed",
+  make-fun-type T (pr OutT InTs),
+  make-fun-type T' (pr OutT' InTs'),
+  std.assert! (
+    (OutT = {{ Prop }} ; OutT = {{ bool }}),
+    (OutT' = {{ Prop }} ; OutT' = {{ bool }}),
+    not (std.null InTs),
+    not (std.null InTs')
+  ) "At least one of R and R' is not a relation: check that they give terms in bool or Prop",
+  std.assert! ({std.length InTs} = {std.length InTs'})
+    "types of R and R' do not overlap (arities are different)",
+  make-expected-type-relation RE RE' OutT OutT' InTs InTs' ExpectedProofT,
+  std.assert! (coq.unify-eq ProofT ExpectedProofT ok) {std.string.concat "" [
+    "Proof type mismatch\n",
+    "expected: ", {coq.term->string ExpectedProofT},
+    "\ngot: ", {coq.term->string ProofT}, "\n\n"
+  ]},
+  head InTs T1,
+  head InTs' T1',
+  zeta-reduce RE REZ,
+  coq.elpi.accumulate _ "relations.db"
+    (clause _ _ (relation REZ T1 OutT RE' T1' OutT' ProofE)).
+
+pred make-expected-type-relation
+  i:term, i:term, i:term, i:term, i:(list term), i:(list term), o:term.
+
+make-expected-type-relation R R' OutT OutT' InTs InTs' T :-
+  make-expected-type-relation.aux R R' OutT OutT' InTs InTs' [] [] T.
+
+pred make-expected-type-relation.aux
+  i:term, i:term, i:term, i:term, i:(list term),
+  i:(list term), i:(list term), i:(list term), o:term.
+
+make-expected-type-relation.aux R R' OutT OutT' [] [] RVars REVars T :-
+  !, std.rev RVars Vars,
+  std.rev REVars EVars,
+  if (OutT = {{ bool }}) (
+    Cast' = (b\ b),
+    if (OutT' = {{ bool }}) (
+      % bool and bool: no cast, link with equality
+      Cast = (b\ b),
+      Link = (b1\ b2\ {{ @eq bool lp:b1 lp:b2 }})
+    ) (
+      % bool and Prop: cast to Prop, link with equivalence
+      Cast = (b\ {{ @eq bool lp:b true }}),
+      Link = (p1\ p2\ {{ lp:p1 <-> lp:p2 }})
+    )
+  ) (
+    Cast = (p\ p),
+    Link = (p1\ p2\ {{ lp:p1 <-> lp:p2 }}),
+    if (OutT' = {{ bool }}) (
+      % Prop and bool: cast to Prop, link with equivalence
+      Cast' = (b\ {{ @eq bool lp:b true }})
+    ) (
+      % Prop and Prop: no cast, link with equality
+      Cast' = (p\ p)
+    )
+  ),
+  T = Link (Cast (app [R|Vars])) (Cast' (app [R'|EVars])).
+
+make-expected-type-relation.aux
+  R R' OutT OutT' [InT|InTs] [InT'|InTs'] Vars EVars (prod _ InT TF) :-
+    if (( embedding InT InT' E _ _ _ _ _ _, ! )
+      ; ( coq.unify-eq InT CInT ok,
+          coq.unify-eq InT' CInT' ok,
+          embedding CInT CInT' E _ _ _ _ _ _ )) (
+      EVars' = (x\ [app [E, x]|EVars])
+    ) (
+      EVars' = (x\ [x|EVars])
+    ),
+    pi x\ make-expected-type-relation.aux R R' OutT OutT' InTs InTs' [x|Vars] (EVars' x) (TF x).
+
+pred add-conversion-allowed i:(list argument).
+
+add-conversion-allowed Args :-
+  std.assert! (Args = [trm T]) {std.string.concat "\n" [
+    "command syntax error",
+    "usage: Trakt Add Conversion (?t)"
+  ]},
+  coq.elpi.accumulate _ "conversion.db" (clause _ _ (conversion-allowed T)).

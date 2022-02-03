@@ -1,0 +1,80 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% try to express non-toplevel arrows in bool whenever it is possible
+pred boolify-arrows i:term, i:type-variance, i:prop, o:term, o:proof.
+
+boolify-arrows {{ lp:A -> lp:B }} TVar Toplevel OutTerm Proof :-
+  coq.typecheck A {{ Prop }} ok,
+  coq.typecheck B {{ Prop }} ok, !,
+  invert-variance TVar OppositeTVar,
+  boolify-arrows A OppositeTVar false A' ProofA,
+  if (Toplevel) (BToplevel = true) (BToplevel = false),
+  boolify-arrows B TVar BToplevel B' ProofB,
+  if (TVar = covariant) (
+    RecursiveProof = proof.lift-logic (app [{{ @impl_morph_impl }}, A, B, A', B']) [ProofA, ProofB]
+  ) (
+    RecursiveProof = proof.lift-logic (app [{{ @impl_morph_impl }}, A', B', A, B]) [ProofA, ProofB]
+  ),
+  if (Toplevel = false, A' = {{ @eq bool lp:X true }}, B' = {{ @eq bool lp:Y true }}) (
+    OutTerm = {{ @eq bool (implb lp:X lp:Y) true }},
+    if (TVar = covariant) (Refl = {{ @implb_impl_impl }}) (Refl = {{ @impl_implb_impl }}),
+    ReflectionProof = proof.of-term (app [Refl, X, Y]),
+    Proof = proof.trans TVar [RecursiveProof, ReflectionProof]
+  ) (
+    OutTerm = {{ lp:A' -> lp:B' }},
+    Proof = RecursiveProof
+  ).
+
+boolify-arrows (prod N T F) TVar Toplevel (prod N T F') Proof :-
+  !, pi x\ decl x N T => (
+    boolify-arrows (F x) TVar Toplevel (F' x) (PF x),
+    if (PF x = proof.none (A_ x)) (
+      Proof = proof.none (prod N T F)
+    ) (
+      if (TVar = covariant) (
+        ProofF = (p\ {{ fun (H : lp:{{ prod N T F' }}) (x : lp:T) => lp:(p x) (H x) }})
+      ) (
+        ProofF = (p\ {{ fun (H : lp:{{ prod N T F }}) (x : lp:T) => lp:(p x) (H x) }})
+      ),
+      Proof = proof.forall T PF ProofF
+    )
+  ).
+
+boolify-arrows (app [F|Args]) TVar _ OutTerm Proof :-
+  logical-connector F F' ArgTVars ImplMorph ReflB2P ReflP2B, !,
+  if (TVar = covariant) (
+    ArgTVars' = ArgTVars,
+    Refl = ReflB2P
+  ) (
+    std.map ArgTVars invert-variance ArgTVars',
+    Refl = ReflP2B
+  ),
+  boolify-arrows.list Args ArgTVars' PropArgs ArgProofs,
+  if (remove-bool-cst-eq.list PropArgs ArgTVars' ArgProofs PropArgs' ArgProofs') (
+    OutTerm = {{ @eq bool lp:{{ app [F'|PropArgs'] }} true }},
+    ArgPreprocessingProof = proof.lift-logic ImplMorph ArgProofs',
+    ReflectionProof = proof.of-term (app [Refl|PropArgs']),
+    Proof = proof.trans TVar [ArgPreprocessingProof, ReflectionProof]
+  ) (
+    OutTerm = app [F|PropArgs],
+    Proof = proof.lift-logic ImplMorph ArgProofs
+  ).
+
+boolify-arrows Term _ _ Term (proof.none _).
+
+pred boolify-arrows.list i:(list term), i:(list type-variance), o:(list term), o:(list proof).
+
+boolify-arrows.list [] [] [] [].
+
+boolify-arrows.list [T|Ts] [TVar|TVars] [T'|Ts'] [P|Ps] :-
+  boolify-arrows T TVar false T' P,
+  boolify-arrows.list Ts TVars Ts' Ps.
