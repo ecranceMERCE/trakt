@@ -2,4 +2,4 @@
 
 # Trakt
 
-This repository contains the first version of Trakt.
+This repository contains the first version of Trakt, a generic goal preprocessing tool for proof automation tactics in Coq.
