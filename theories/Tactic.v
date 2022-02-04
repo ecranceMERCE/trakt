@@ -23,7 +23,6 @@ Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
 Elpi Accumulate File "elpi/util.elpi".
-From mathcomp Require Import ssreflect.
 Elpi Accumulate File "elpi/proof.elpi".
 Elpi Accumulate File "elpi/rewrite-identities.elpi".
 Elpi Accumulate File "elpi/preprocess.elpi".

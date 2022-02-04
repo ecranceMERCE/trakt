@@ -91,3 +91,13 @@ Lemma impl_implb_impl : forall (x y : bool), (x = true -> y = true) -> implb x y
 Proof.
   intros [] []; simpl; auto.
 Qed.
+
+Lemma iffRL : forall (P Q : Prop), P <-> Q -> (Q -> P).
+Proof.
+  intros P Q [_ H]; exact H.
+Qed.
+
+Lemma iffLR : forall (P Q : Prop), P <-> Q -> (P -> Q).
+Proof.
+  intros P Q [H _]; exact H.
+Qed.
