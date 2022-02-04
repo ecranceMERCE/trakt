@@ -106,3 +106,14 @@ It is possible to add temporary declarations of **relations** to the database wh
 ```
 trakt T bool with rel (R1, R1', equiv_1) ... (Rn, Rn', equiv_n).
 ```
+
+### Warning
+
+When adding knowledge to the database, please be careful: for technical reasons, when targetting `Prop`, changing both the theory-specific and logical types **in one shot** is not supported.
+Indeed, in the `bool` to `Prop` case, a logical preprocessor is run in the first place, expressing the source goal in `Prop` before focusing on declared embeddings.
+It means that in this case, the user must add two declarations.
+
+<p style="text-align: center"><img src="logic.png" alt="Logic diagram" width="75%" /></p>
+
+For example, when trying to replace `Nat.eqb` with `@eq Z`, a declaration between those terms cannot be used by Trakt.
+Instead, please declare a link between `Nat.eqb` and `@eq nat` as well as a link between `@eq nat` and `@eq Z`.
