@@ -96,6 +96,7 @@ bool-to-prop {{ lp:{{ app [F|Args] }} = true }} TVar OutTerm Proof :-
     if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T), !,
     Args' = Args
   ); (
+    conversion-allowed F,
     relation R T {{ bool }} F' T {{ Prop }} EquProof,
     coq.unify-eq F R ok,
     if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T), !,
@@ -106,8 +107,9 @@ bool-to-prop {{ lp:{{ app [F|Args] }} = true }} TVar OutTerm Proof :-
     if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T), !
   ); (
     Args = [X|Args'], not (Args' = []),
-    relation R T {{ bool }} F' T {{ Prop }} EquProof,
-    coq.unify-eq (app [F, X]) R ok,
+    conversion-allowed F,
+    relation (app [F, X']) T {{ bool }} F' T {{ Prop }} EquProof,
+    coq.unify-eq X X' ok,
     if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T)
   )), !,
   if (TVar = covariant) (
