@@ -69,11 +69,20 @@ reorder-hyp _ Head _ Hyps Vars RMixed Proof :-
   std.append Hyps Vars Vars',
   bind-back Vars' (app [Head|Mixed]) Proof.
 
-pred bind-back i:list term, i:term, o:term.
 % bind-back Xs Term Term'
 % beta-abstracts all Xs in Term to give Term'
+pred bind-back i:list term, i:term, o:term.
+
 bind-back [] Term Term.
 
 bind-back [X|Xs] Term Term' :-
   pi x\ copy X x => copy Term (F x), !,
   bind-back Xs (fun _ _ F) Term'.
+
+% pop a list of hypotheses in front of a type
+pred pop-all i:term, o:(list term), o:term.
+
+pop-all {{ lp:H -> lp:Term }} [H|Hs] Term' :- !,
+  pop-all Term Hs Term'.
+
+pop-all Term [] Term.

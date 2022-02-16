@@ -136,3 +136,11 @@ bool-to-prop.list [] [] [] [].
 bool-to-prop.list [T|Ts] [TVar|TVars] [T'|Ts'] [P|Ps] :-
   bool-to-prop T TVar T' P,
   bool-to-prop.list Ts TVars Ts' Ps.
+
+pred replicate i:int, i:A, o:(list A).
+
+replicate 0 _ [] :- !.
+
+replicate N X [X|L] :-
+  N1 is N - 1,
+  replicate N1 X L.

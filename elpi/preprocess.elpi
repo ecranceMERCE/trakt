@@ -384,3 +384,412 @@ preprocess.args.aux TermsOk [Term|Terms] ETarget LTarget TVar CtxF [Term'|Terms'
   preprocess.args.aux TermsOk' Terms ETarget LTarget TVar CtxF Terms' Proofs.
 
 preprocess.args.aux _ [] _ _ _ _ [] [].
+
+% util
+
+% beta-reduce a term recursively until there are no applied lambdas left
+pred beta-reduce i:term, o:term.
+
+beta-reduce (prod N T F) (prod N T' F') :-
+  !, beta-reduce T T',
+  pi x\ beta-reduce (F x) (F' x).
+
+beta-reduce (prod2 N T1 T2 F) (prod2 N T1' T2' F') :-
+  !, beta-reduce T1 T1',
+  beta-reduce T2 T2',
+  pi x\ beta-reduce (F x) (F' x).
+
+beta-reduce (app [F|Args]) Term' :-
+  !, std.map Args beta-reduce Args',
+  beta-reduce F F',
+  beta-reduce-app (app [F'|Args']) Term'.
+
+beta-reduce (fun N T F) (fun N T' F') :-
+  !, beta-reduce T T',
+  pi x\ beta-reduce (F x) (F' x).
+
+beta-reduce Term Term.
+
+% add a forward embedding function to a term if it exists
+pred try-add-forward-embedding i:term, i:term, o:term.
+
+try-add-forward-embedding ETarget Term (app [cast E, Term]) :-
+  coq.typecheck Term T ok,
+  embedding T ETarget E _ _ _ _ _ _, !.
+
+try-add-forward-embedding ETarget Term (app [cast E, Term]) :-
+  conversion-allowed {term-head Term},
+  coq.typecheck Term T' ok,
+  embedding T ETarget E _ _ _ _ _ _,
+  coq.unify-eq T' T ok, !.
+
+try-add-forward-embedding _ Term Term.
+
+% rewrite a term, adding an identity formed by the composition of 2 embedding functions
+pred try-add-embedding-identity i:term, i:term, i:type-variance, i:(term -> term), o:term, o:proof.
+
+try-add-embedding-identity ETarget Term TVar CtxF (app [cast RE, app [cast E, Term]]) Proof :-
+  coq.typecheck Term T ok,
+  embedding T ETarget E RE FBInv _ _ _ _, !,
+  Proof = proof.lift-eq TVar CtxF (app [FBInv, Term]).
+
+try-add-embedding-identity ETarget Term TVar CtxF (app [cast RE, app [cast E, Term]]) Proof :-
+  conversion-allowed {term-head Term},
+  coq.typecheck Term T' ok,
+  embedding T ETarget E RE FBInv _ _ _ _,
+  coq.unify-eq T' T ok, !,
+  Proof = proof.lift-eq TVar CtxF (app [FBInv, Term]).
+
+try-add-embedding-identity _ Term _ CtxF Term (proof.none (CtxF Term)).
+
+pred try-add-embedding-identity.list
+  i:term, i:(list term), i:type-variance, i:((list term) -> term), o:(list term), o:(list proof).
+
+try-add-embedding-identity.list ETarget Terms TVar CtxF Terms' Proofs :-
+  try-add-embedding-identity.list.aux [] ETarget TVar Terms CtxF Terms' Proofs.
+
+pred try-add-embedding-identity.list.aux
+   i:(list term), i:term, i:type-variance, i:(list term), i:((list term) -> term),
+   o:(list term), o:(list proof).
+
+try-add-embedding-identity.list.aux _ _ _ [] _ [] [].
+
+try-add-embedding-identity.list.aux TermsOk ETarget TVar [Term|Terms] CtxF [Term'|Terms'] Proofs' :-
+    arg-context-from-position CtxF TermsOk Terms CtxTermF,
+    try-add-embedding-identity ETarget Term TVar CtxTermF Term' Proof,
+    std.append TermsOk [Term'] TermsOk',
+    try-add-embedding-identity.list.aux
+      TermsOk' ETarget TVar Terms CtxF Terms' Proofs,
+    if (Proof = proof.none _) (
+      Proofs' = Proofs
+    ) (
+      Proofs' = [Proof|Proofs]
+    ).
+
+% NB: here, we remember the terms that have already been processed, so that they can be included
+% into the context of future arguments to be processed
+
+% the rewrite proofs are made one after the other, so the proof is sequential, therefore
+% every rewrite must include already processed terms in the context of the term that is currently
+% being rewritten
+
+% e.g. to rewrite f A B C into f A' B' C'
+% - the context for A will be λx.f x B C
+% - the context for B will be λx.f A' x C (A' is a processed term)
+% - the context for C will be λx.f A' B' x (now has also been processed into B')
+
+% this complexity comes from the fact that when we write "rewrite HA; rewrite HB; rewrite HC" in
+% Ltac, Coq infers the context automatically. Here we have more control, because we do not re-read
+% the whole goal to create the context, instead we remember it and pass it around with small
+% modifications everytime we go to a lower subterm
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% MAKING THE TYPE FOR AN EMBEDDING CONDITION
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% take a type and give the condition that must be generated on any term that is embedded
+% from this type to the target type
+pred make-condition-type i:coqfuntype, i:term, i:term, o:(option (term -> term)).
+
+% e.g.: for nat, this predicate will return the following condition
+%       as an elpi lambda: λx. 0 <= x
+%       for (nat -> nat), this is the lambda: λx. 0 <= x -> 0 <= f x
+
+% the variable is not a function
+make-condition-type (pr T []) ETarget LTarget CondFOpt :-
+  !, make-simple-condition-type T ETarget LTarget CondFOpt.
+
+% the variable is a function
+make-condition-type (pr OutT InTs) ETarget LTarget CondFOpt :-
+  make-simple-condition-type OutT ETarget LTarget OutCondFOpt,
+  if (OutCondFOpt = some OutCondF) (
+    make-simple-condition-type.list InTs ETarget LTarget CondFOpts,
+    pi f\ combine-condition-types CondFOpts 1 [] f ETarget InTs OutCondF (CondF f),
+    CondFOpt = some CondF
+  ) (
+    % if embedding the output type yields no condition, then there is no condition to generate
+    % for the function
+    CondFOpt = none
+  ).
+
+% make the condition associated to the given type when doing the embedding to the target type
+% here "simple" means the type given as argument is not a function type
+pred make-simple-condition-type i:term, i:term, i:term, o:(option (term -> term)).
+
+make-simple-condition-type T ETarget LTarget CondFOpt :-
+  if (embedding T ETarget _ _ _ _ (some LTarget) (some (prod _ T F)) _) (
+    % conditions have type T -> Prop and we want a ETarget -> Prop so we have to generalise the
+    % embedded sub-terms as a new variable
+    pi x\ generalise x (F x) (pr T []) ETarget F',
+    CondFOpt = some F'
+  ) (
+    CondFOpt = none
+  ).
+
+pred make-simple-condition-type.list
+  i:(list term), i:term, i:term, o:(list (option (term -> term))).
+
+make-simple-condition-type.list [T|Ts] ETarget LTarget [CondFOpt|CondFOpts] :-
+  make-simple-condition-type T ETarget LTarget CondFOpt,
+  make-simple-condition-type.list Ts ETarget LTarget CondFOpts.
+
+make-simple-condition-type.list [] _ _ [].
+
+% make one functional condition from argument conditions and the function term
+pred combine-condition-types
+  i:(list (option (term -> term))), % the argument conditions (arguments with `none` conditions are
+                                    % just bound variables used as is in the final condition)
+  i:int, i:(list term), % used to remember variables and create names for them
+  i:term, % the function concerned by the condition
+  i:term, % target embedding type, used for typing the binders
+  i:(list term), % types of the arguments of the function
+  i:(term -> term), % the condition on the output type of the function
+  o:term.
+
+combine-condition-types [CondFOpt|CondFOpts] N Vars F ETarget [InT|InTs] OutCondF Cond :-
+  !, N1 is N + 1,
+  coq.name-suffix `x` N Name,
+  pi x\ combine-condition-types CondFOpts N1 [x|Vars] F ETarget InTs OutCondF (TailCondF x),
+  if (CondFOpt = some HeadCondF) (
+    Cond = prod Name ETarget (t\ {{ lp:{{ HeadCondF t }} -> lp:{{ TailCondF t }} }})
+  ) (
+    if (embedding InT ETarget _ _ _ _ _ _ _) (
+      Cond = prod Name ETarget TailCondF
+    ) (
+      Cond = prod Name InT TailCondF
+    )
+  ).
+
+combine-condition-types [] _ RVars F _ [] OutCondF (OutCondF (app [F|Vars])) :-
+  std.rev RVars Vars.
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% MAKING A PROOF FOR AN EMBEDDING CONDITION
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% make a proof for the embedding condition associated to the given type
+pred make-condition-proof
+  i:coqfuntype, % function type input, so that we can also generate conditions on functions
+  i:term, % embedding target type
+  i:term, % logic target type to select the right logic for the proof
+  o:(option (term -> term)).
+
+% the variable is not a function
+make-condition-proof (pr T []) ETarget LTarget CondProofFOpt :-
+  make-simple-condition-proof T ETarget LTarget CondProofFOpt.
+
+pred make-simple-condition-proof i:term, i:term, i:term, o:(option (term -> term)).
+
+make-simple-condition-proof T ETarget LTarget CondProofFOpt :-
+  if (embedding T ETarget _ _ _ _ (some LTarget) _ (some CondProof)) (
+    CondProofFOpt = some (x\ app [CondProof, x])
+  ) (
+    CondProofFOpt = none
+  ).
+
+% the variable is a function
+make-condition-proof (pr OutT InTs) ETarget LTarget CondProofFOpt :-
+  make-simple-condition-proof OutT ETarget LTarget OutCondProofFOpt,
+  if (OutCondProofFOpt = some OutCondProofF) (
+    make-reverse-embedding-context.list InTs ETarget REFs,
+    pi f\
+      combine-reverse-embedding-contexts REFs true 1 [] f ETarget InTs OutCondProofF (CondProofF f),
+    CondProofFOpt = some CondProofF
+  ) (
+    % if embedding the output type yields no condition, then there is no condition to prove
+    CondProofFOpt = none
+  ).
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% GENERALISING A TERM
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% generalise a term with respect to a subterm
+pred generalise
+  i:term, % the subterm to replace with a new variable
+  i:term, % the term to generalise
+  i:coqfuntype, % the type of the variable (function type so that we can generalise on functions)
+  i:term, % embedding target type
+  o:(term -> term).
+
+generalise X Term FT ETarget F' :-
+  pi x\
+    % first replace X with a fresh variable
+    copy X x => copy Term (F x),
+    % then remove embedding functions around this variable everywhere in the term
+    remove-embeddings-around x (F x) FT ETarget (F' x).
+
+pred remove-embeddings-around i:term, i:term, i:coqfuntype, i:term, o:term.
+
+remove-embeddings-around X (prod N T F) FT ETarget (prod N T' F') :-
+  !, pi x\ remove-embeddings-around X (F x) FT ETarget (F' x),
+  remove-embeddings-around X T FT ETarget T'.
+
+remove-embeddings-around X (fun N T F) FT ETarget (fun N T' F') :-
+  !, pi x\ remove-embeddings-around X (F x) FT ETarget (F' x),
+  remove-embeddings-around X T FT ETarget T'.
+
+remove-embeddings-around X (prod2 N T1 T1' F) FT ETarget (prod2 N T2 T2' F') :-
+  !, pi x\ remove-embeddings-around X (F x) FT ETarget (F' x),
+  remove-embeddings-around X T1 FT ETarget T2,
+  remove-embeddings-around X T1' FT ETarget T2'.
+
+remove-embeddings-around X (app [Emb, X]) (pr T []) ETarget X :-
+  (Emb = E ; Emb = cast E),
+  embedding T ETarget E _ _ _ _ _ _, !.
+
+remove-embeddings-around X (app [Emb, app [X|Args]]) (pr T ArgTs) ETarget (app [X|Args'']) :-
+  (Emb = E ; Emb = cast E),
+  embedding T ETarget E _ _ _ _ _ _, !,
+  remove-head-reverse-embedding.list Args ArgTs ETarget Args',
+  remove-embeddings-around.list X Args' (pr T ArgTs) ETarget Args''.
+
+remove-embeddings-around X (app [X|Args]) (pr T ArgTs) ETarget (app [X|Args'']) :-
+  !, remove-head-reverse-embedding.list Args ArgTs ETarget Args',
+  remove-embeddings-around.list X Args' (pr T ArgTs) ETarget Args''.
+
+remove-embeddings-around X (app [F|Args]) FT ETarget (app [F'|Args']) :-
+  !, remove-embeddings-around.list X Args FT ETarget Args',
+  remove-embeddings-around X F FT ETarget F'.
+
+remove-embeddings-around _ Term _ _ Term.
+
+pred remove-embeddings-around.list i:term, i:(list term), i:coqfuntype, i:term, o:(list term).
+
+remove-embeddings-around.list _ [] _ _ [] :- !.
+
+remove-embeddings-around.list X [Term|Terms] FT ETarget [Term'|Terms'] :-
+  remove-embeddings-around X Term FT ETarget Term', !,
+  remove-embeddings-around.list X Terms FT ETarget Terms'.
+
+pred remove-head-reverse-embedding i:term, i:term, i:term, o:term.
+
+remove-head-reverse-embedding (app [REmb, Term]) T ETarget Term :-
+  (REmb = RE ; REmb = cast RE),
+  embedding T ETarget _ RE _ _ _ _ _, !.
+
+remove-head-reverse-embedding Term _ _ Term.
+
+pred remove-head-reverse-embedding.list i:(list term), i:(list term), i:term, o:(list term).
+
+remove-head-reverse-embedding.list [] [] _ [] :- !.
+
+remove-head-reverse-embedding.list [Term|Terms] [T|Ts] ETarget [Term'|Terms'] :-
+  remove-head-reverse-embedding Term T ETarget Term', !,
+  remove-head-reverse-embedding.list Terms Ts ETarget Terms'.
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% MAKING EMBEDDING CONTEXTS
+
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+%%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
+
+% here by context we mean E[x] and not E x (meta-function, not Coq function)
+% e.g. λx.Z.of_nat x is λx.E[x], λx.Z.of_nat (f (Z.to_nat x)) is E[f]
+pred make-embedding-context i:coqfuntype, i:term, o:(term -> term).
+
+make-embedding-context (pr T []) ETarget EF :-
+  !, if (embedding T ETarget E _ _ _ _ _ _) (
+    EF = (t\ app [E, t])
+  ) (
+    EF = (t\ t)
+  ).
+
+make-embedding-context (pr OutT InTs) ETarget EF :-
+  make-reverse-embedding-context.list InTs ETarget REFs,
+  if (embedding OutT ETarget E _ _ _ _ _ _) (
+    OutEF = (t\ app [E, t])
+  ) (
+    OutEF = (t\ t)
+  ),
+  pi f\ combine-reverse-embedding-contexts REFs false 1 [] f ETarget InTs OutEF (EF f).
+
+pred make-embedding-context.list i:(list term), i:term, o:(list (term -> term)).
+
+make-embedding-context.list [InT|InTs] ETarget [EF|EFs] :-
+  make-embedding-context (pr InT []) ETarget EF,
+  make-embedding-context.list InTs ETarget EFs.
+
+make-embedding-context.list [] _ [].
+
+% take embedding contexts on the arguments and the output type, and make a Coq function
+pred combine-reverse-embedding-contexts
+  i:(list (term -> term)), % embedding contexts for every argument of a function
+  i:prop, % insert underscores (in case this function is used to make a condition proof)
+  i:int, i:(list term), % variables and counter (for naming purposes)
+  i:term, % function F for which we create a context
+  i:term, % target embedding type
+  i:(list term), % source argument types
+  i:(term -> term), % embedding context for an application of F
+  o:term.
+
+combine-reverse-embedding-contexts [REF|REFs] InsertUS N Args F ETarget [InT|InTs] OutEF E :-
+  !, N1 is N + 1,
+  coq.name-suffix `x` N Name,
+  pi x\
+    combine-reverse-embedding-contexts REFs InsertUS N1 [REF x|Args] F ETarget InTs OutEF (EF x),
+  if (embedding InT ETarget _ _ _ _ _ CondOpt _) (
+    if (InsertUS, CondOpt = some _) (
+      E = fun Name ETarget (x\ fun _ _ (t\ EF x))
+    ) (
+      E = fun Name ETarget EF
+    )
+  ) (
+    E = fun Name InT EF
+  ).
+
+combine-reverse-embedding-contexts [] _ _ RArgs F _ [] OutEF (OutEF (app [F|Args])) :-
+  std.rev RArgs Args.
+
+pred make-reverse-embedding-context i:coqfuntype, i:term, o:(term -> term).
+
+make-reverse-embedding-context (pr T []) ETarget REF :-
+  !, if (embedding T ETarget _ RE _ _ _ _ _) (
+    REF = (t\ app [RE, t])
+  ) (
+    REF = (t\ t)
+  ).
+
+make-reverse-embedding-context (pr OutT InTs) ETarget REF :-
+  make-embedding-context.list InTs ETarget EFs,
+  if (embedding OutT ETarget _ RE _ _ _ _ _) (
+    OutREF = (t\ app [RE, t])
+  ) (
+    OutREF = (t\ t)
+  ),
+  pi f\ combine-embedding-contexts EFs 1 [] f InTs OutREF (REF f).
+
+pred make-reverse-embedding-context.list i:(list term), i:term, o:(list (term -> term)).
+
+make-reverse-embedding-context.list [InT|InTs] ETarget [REF|REFs] :-
+  make-reverse-embedding-context (pr InT []) ETarget REF,
+  make-reverse-embedding-context.list InTs ETarget REFs.
+
+make-reverse-embedding-context.list [] _ [].
+
+% same as above but we create a context for F' here, going back into the source types
+pred combine-embedding-contexts
+  i:(list (term -> term)), i:int, i:(list term), i:term, i:(list term), i:(term -> term),
+  o:term.
+
+combine-embedding-contexts [EF|EFs] N Args F [InT|InTs] OutREF (fun Name InT REF) :-
+  !, N1 is N + 1,
+  coq.name-suffix `x` N Name,
+  pi x\ combine-embedding-contexts EFs N1 [EF x|Args] F InTs OutREF (REF x).
+
+combine-embedding-contexts [] _ RArgs F [] OutREF (OutREF (app [F|Args])) :-
+  std.rev RArgs Args.

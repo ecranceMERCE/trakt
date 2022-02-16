@@ -80,3 +80,28 @@ find-free-variables.aux X ETarget Context FVInfoSet :-
   ) (
     FVInfoSet = EmptySet
   ).
+
+% util
+
+% merge two sets (function missing from the elpi stdlib)
+pred set-merge i:(std.set A), i:(std.set A), o:(std.set A).
+
+set-merge S1 S2 S :-
+  std.set.elements S1 ElemS1,
+  std.fold ElemS1 S2 std.set.add S.
+
+pred set-merge.list i:(list (std.set A)), o:(std.set A).
+
+set-merge.list [] EmptySet :-
+  std.set.make cmp_term EmptySet.
+
+set-merge.list [S|Ss] S'' :-
+  set-merge.list Ss S',
+  set-merge S S' S''.
+
+pred unzip3 i:(list (pair A (pair B C))), o:(list A), o:(list B), o:(list C).
+
+unzip3 [] [] [] [].
+
+unzip3 [pr A (pr B C)|Xs] [A|As] [B|Bs] [C|Cs] :-
+  unzip3 Xs As Bs Cs.

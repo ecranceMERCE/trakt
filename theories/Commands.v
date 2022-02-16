@@ -24,13 +24,20 @@ Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
 
-Elpi Accumulate File "elpi/util.elpi".
+Elpi Accumulate File "elpi/common.elpi".
 Elpi Typecheck.
 
 Elpi Accumulate File "elpi/commands.elpi".
 Elpi Typecheck.
 
 Elpi Accumulate lp:{{
+  pred elaborate-argument i:argument, o:argument.
+
+  elaborate-argument (trm T) (trm ET) :-
+    !, coq.elaborate-skeleton T _ ET ok.
+
+  elaborate-argument A A.
+
   pred operation i:string, i:string, o:(list argument -> prop).
 
   operation "Add" "Embedding" add-embedding.

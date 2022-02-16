@@ -22,7 +22,7 @@ Elpi Accumulate Db logic.db.
 Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
-Elpi Accumulate File "elpi/util.elpi".
+Elpi Accumulate File "elpi/common.elpi".
 Elpi Accumulate File "elpi/proof.elpi".
 Elpi Accumulate File "elpi/rewrite-identities.elpi".
 Elpi Accumulate File "elpi/preprocess.elpi".
@@ -30,7 +30,6 @@ Elpi Accumulate File "elpi/generalise-free-variables.elpi".
 Elpi Accumulate File "elpi/bool-to-prop.elpi".
 Elpi Accumulate File "elpi/tactic.elpi".
 Elpi Accumulate lp:{{
-
   pred format-runtime-relation i:term, o:prop.
 
   format-runtime-relation RRD1 RRC1 :-
@@ -90,7 +89,7 @@ Elpi Accumulate Db logic.db.
 Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
-Elpi Accumulate File "elpi/util.elpi".
+Elpi Accumulate File "elpi/common.elpi".
 Elpi Accumulate File "elpi/proof.elpi".
 Elpi Accumulate File "elpi/rewrite-identities.elpi".
 Elpi Accumulate File "elpi/preprocess.elpi".
@@ -98,6 +97,20 @@ Elpi Accumulate File "elpi/generalise-free-variables.elpi".
 Elpi Accumulate File "elpi/bool-to-prop.elpi".
 Elpi Accumulate File "elpi/tactic.elpi".
 Elpi Accumulate lp:{{
+  pred format-runtime-relation-data i:(list argument), o:(list prop).
+
+  format-runtime-relation-data [RRD1|RRD] [RRC1|RRC] :-
+    !, RRD1 = trm {{ pair (pair lp:R lp:R') lp:Proof }},
+    coq.elaborate-skeleton R T RE ok,
+    coq.elaborate-skeleton R' T' RE' ok,
+    coq.elaborate-skeleton Proof _ ProofE ok,
+    make-fun-type T (pr OutT [T1|_]),
+    make-fun-type T' (pr OutT' [T1'|_]),
+    RRC1 = relation RE T1 OutT RE' T1' OutT' ProofE,
+    format-runtime-relation-data RRD RRC.
+
+  format-runtime-relation-data [] [].
+
   solve Goal NewGoals :-
     Goal = goal _ _ GoalTy _ [trm ETarget, trm LTarget, trm H, str S|RuntimeRelData],
     (LTarget = {{ Prop }} ; LTarget = {{ bool }}),
@@ -130,7 +143,7 @@ Elpi Tactic trakt_boolify_arrows.
 
 Elpi Accumulate File "elpi/types.elpi".
 Elpi Accumulate Db logic.db.
-Elpi Accumulate File "elpi/util.elpi".
+Elpi Accumulate File "elpi/common.elpi".
 Elpi Accumulate File "elpi/proof.elpi".
 Elpi Accumulate File "elpi/boolify-arrows.elpi".
 Elpi Accumulate lp:{{
@@ -151,7 +164,7 @@ Tactic Notation "trakt_boolify_arrows" := elpi trakt_boolify_arrows.
 Elpi Tactic trakt_reorder_quantifiers.
 
 Elpi Accumulate File "elpi/types.elpi".
-Elpi Accumulate File "elpi/util.elpi".
+Elpi Accumulate File "elpi/common.elpi".
 Elpi Accumulate File "elpi/reorder-quantifiers.elpi".
 Elpi Accumulate lp:{{
   solve ((goal _ _ GoalTy _ []) as InitialGoal) NewGoals :- !, std.do! [

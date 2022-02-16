@@ -1,0 +1,186 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                           %                     Trakt                       %
+%  _______        _    _    %            Copyright (C) 2022 MERCE             %
+% |__   __|      | |  | |   %     (Mitsubishi Electric R&D Centre Europe)     %
+%    | |_ __ __ _| | _| |_  %        Enzo Crance <enzo.crance@inria.fr>       %
+%    | | '__/ _` | |/ / __| %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    | | | | (_| |   <| |_  % This file is distributed under the terms of the %
+%    |_|_|  \__,_|_|\_\\__| %   GNU Lesser General Public License Version 3   %
+%                           %  (see LICENSE file for the text of the license) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pred invert-variance i:type-variance, o:type-variance.
+
+invert-variance covariant contravariant.
+invert-variance contravariant covariant.
+
+% beta-reduce the head of a function application until no more lambdas are applied
+pred beta-reduce-app i:term, o:term.
+
+beta-reduce-app (app [fun _ _ F, X|Args]) Term' :-
+  !, beta-reduce-app (app [F X|Args]) Term,
+  if (Term = app [OneTermOnly]) (
+    Term' = OneTermOnly
+  ) (
+    Term' = Term
+  ).
+
+beta-reduce-app Term Term.
+
+% make a context with its variable being at a specific position in a function application,
+% from the part of the AST above the function application (context of a list of terms), the
+% arguments that must precede it, and the arguments that must follow it
+pred arg-context-from-position
+  i:((list term) -> term), i:(list term), i:(list term), o:(term -> term).
+
+arg-context-from-position CtxF ArgsBefore ArgsAfter (t\ CtxF (ArgListF t)) :-
+  pi x\ std.append ArgsBefore [x|ArgsAfter] (ArgListF x).
+
+% try to remove "= true" or "= false" in the head of a term and give the associated proof
+pred remove-bool-cst-eq i:term, i:type-variance, o:term, o:proof.
+
+remove-bool-cst-eq {{ lp:X = true }} _ X (proof.none {{ lp:X = true }}).
+
+remove-bool-cst-eq {{ true = lp:X }} TVar X (proof.of-term ProofTerm) :-
+  if (TVar = covariant) (
+    ProofTerm = {{ is_true_symmetry lp:X }}
+  ) (
+    ProofTerm = {{ is_true_symmetry_contra lp:X }}
+  ).
+
+remove-bool-cst-eq {{ lp:X = false }} TVar {{ negb lp:X }} (proof.of-term ProofTerm) :-
+  if (TVar = covariant) (
+    ProofTerm = {{ false_negb lp:X }}
+  ) (
+    ProofTerm = {{ false_negb_contra lp:X }}
+  ).
+
+remove-bool-cst-eq {{ false = lp:X }} TVar {{ negb lp:X }} (proof.of-term ProofTerm) :-
+  if (TVar = covariant) (
+    ProofTerm = {{ false_negb_symmetry lp:X }}
+  ) (
+    ProofTerm = {{ false_negb_symmetry_contra lp:X }}
+  ).
+
+pred remove-bool-cst-eq.list
+  i:(list term), i:(list type-variance), i:(list proof), o:(list term), o:(list proof).
+
+remove-bool-cst-eq.list [] [] Proofs [] Proofs.
+
+remove-bool-cst-eq.list [Term|Terms] [TVar|TVars] [Proof|Proofs] [Term'|Terms'] [Proof'|Proofs'] :-
+  remove-bool-cst-eq Term TVar Term' RmProof,
+  remove-bool-cst-eq.list Terms TVars Proofs Terms' Proofs',
+  if (RmProof = proof.none _) (
+    Proof' = Proof
+  ) (
+    Proof' = proof.trans TVar [Proof, RmProof]
+  ).
+
+% make a simple function type closer to a target by replacing the types of the arguments
+% everytime the type to replace is embeddable into the target type
+pred targetify-type i:term, i:term, o:term.
+
+targetify-type ETarget {{ lp:T1 -> lp:T2 }} {{ lp:T1' -> lp:T2' }} :- !,
+  targetify-type ETarget T1 T1',
+  targetify-type ETarget T2 T2'.
+
+targetify-type ETarget T ETarget :-
+  embedding T ETarget _ _ _ _ _ _ _, !.
+
+targetify-type ETarget T ETarget :-
+  conversion-allowed {term-head T},
+  embedding T' ETarget _ _ _ _ _ _ _,
+  coq.unify-eq T' T ok, !.
+
+targetify-type _ T T.
+
+% completely remove any embedding found in a term
+% pred remove-embeddings i:term, o:term.
+
+% remove-embeddings {{ lp:A -> lp:B }} {{ lp:A' -> lp:B' }} :- !,
+%   remove-embeddings A A',
+%   remove-embeddings B B'.
+
+% remove-embeddings (app [E, Term]) Term' :-
+%   embedding _ _ E _ _ _ _ _ _, !,
+%   remove-embeddings Term Term'.
+
+% remove-embeddings (app [RE, Term]) Term' :-
+%   embedding _ _ _ RE _ _ _ _ _, !,
+%   remove-embeddings Term Term'.
+
+% remove-embeddings (app [F|Args]) (app [F|Args']) :-
+%   !, std.map Args remove-embeddings Args'.
+
+% remove-embeddings Term Term.
+
+% abstract a function application argument without abstracting backward embeddings
+% F Args -> generate an elpi function for each argument in Args
+% the function will be λx.x except if the argument starts with a backward embedding
+% in that case it will be kept (λx. RE x)
+% pred abstract-arg i:term, i:term, o:(term -> term).
+
+% abstract-arg ETarget (app [RE, _]) (x\ app [RE, x]) :-
+%   embedding _ ETarget _ RE _ _ _ _ _, !.
+
+% abstract-arg _ _ (x\ x).
+
+% receive a context, a function, and a list of abstracted arguments (elpi functions made
+% with abstract-arg), and make a Coq function to apply these arguments to variables and bind them
+% input : Ctx / F / f1...fn / T1...Tn 
+% output : fun (a1 : T1) ... (an : Tn) => Ctx (F (f1 a1) ... (fn an))
+% (the a1...an are created and bound)
+
+pred make-fun-type i:term, o:coqfuntype.
+
+make-fun-type T (pr OutT InTs) :-
+  make-fun-type.aux T OutT InTs.
+
+pred make-fun-type.aux i:term, o:term, o:(list term).
+
+make-fun-type.aux {{ lp:A -> lp:B }} OutT [A|InB] :-
+  !, make-fun-type.aux B OutT InB.
+
+make-fun-type.aux T T [].
+
+% pred make-coq-type i:coqfuntype, o:term.
+
+% make-coq-type (pr OutT InTs) T :-
+%   make-coq-type.aux OutT InTs T.
+
+% pred make-coq-type.aux i:term, i:(list term), o:term.
+
+% make-coq-type.aux OutT [A|InB] {{ lp:A -> lp:B }} :-
+%   !, make-coq-type.aux OutT InB B.
+
+% make-coq-type.aux T [] T.
+
+% clear all uses of custom constructors introduced previously during the preprocessing
+pred clear-custom-terms i:term, o:term.
+
+clear-custom-terms (prod N T F) (prod N T' F') :-
+  !, pi x\ clear-custom-terms (F x) (F' x),
+  clear-custom-terms T T'.
+
+clear-custom-terms (fun N T F) (fun N T' F') :-
+  !, pi x\ clear-custom-terms (F x) (F' x),
+  clear-custom-terms T T'.
+
+clear-custom-terms (prod2 N _ T F) (prod N T' F') :-
+  !, pi x\ clear-custom-terms (F x) (F' x),
+  clear-custom-terms T T'.
+
+clear-custom-terms (cast E) E :- !.
+
+clear-custom-terms (app [F|Args]) (app [F'|Args']) :-
+  !, std.map Args clear-custom-terms Args',
+  clear-custom-terms F F'.
+
+clear-custom-terms Term Term.
+
+pred term-head i:term, o:term.
+
+term-head (app [app L|_]) H :- !,
+  term-head (app L) H.
+term-head (app [H|_]) H :- !.
+term-head Term Term.

@@ -307,3 +307,14 @@ add-conversion-allowed Args :-
     "usage: Trakt Add Conversion (?t)"
   ]},
   coq.elpi.accumulate _ "conversion.db" (clause _ _ (conversion-allowed T)).
+
+pred zeta-reduce i:term, o:term.
+
+zeta-reduce (let _ _ X F) Out :- !,
+  zeta-reduce (F X) Out.
+
+zeta-reduce Term Term.
+
+pred head i:(list A), o:A.
+
+head [H|_] H.

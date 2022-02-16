@@ -131,3 +131,26 @@ clear-custom-terms-in-proof (proof.none T) (proof.none T') :-
   clear-custom-terms T T'.
 
 type proof.none (term -> proof).
+
+
+% util
+
+% compose a list of functions
+pred compose-all i:(list term), o:term.
+
+compose-all Functions (fun `H` OriginT F) :-
+  Functions = [F1|_],
+  coq.typecheck F1 {{ lp:OriginT -> _ }} ok,
+  % coq.typecheck F1 TF1 ok,
+  % coq.unify-eq TF1 {{ lp:OriginT -> _ }} ok,
+  pi x\ decl x _ OriginT => apply-all Functions x (F x).
+
+compose-all [] {{ id }}.
+
+% apply a list of functions to a term
+pred apply-all i:(list term), i:term, o:term.
+
+apply-all [] Term Term.
+
+apply-all [F|Fs] Term Term' :-
+  apply-all Fs (app [F, Term]) Term'.

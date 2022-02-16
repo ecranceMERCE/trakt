@@ -179,3 +179,28 @@ rewrite-identities.args.aux
     rewrite-identities.args.aux TermsOk' Terms ETarget LTarget TVar CtxF CondProofs Terms' Proofs.
 
 rewrite-identities.args.aux _ [] _ _ _ _ _ [] [].
+
+% util
+
+% like an IF construct but without an ELSE block
+pred when i:prop, i:prop.
+
+when Condition P :- if Condition P true.
+
+pred interleave i:(list A), i:(list A), o:(list A).
+
+interleave [X|Xs] [Y|Ys] [X,Y|L] :-
+  interleave Xs Ys L.
+
+interleave [] [] [].
+
+pred map-find-opt i:K, i:(std.map K V), o:(option V).
+
+map-find-opt K M (some V) :-
+  std.map.find K M V, !.
+
+map-find-opt _ _ none.
+
+pred option-make i:A, o:(option A).
+
+option-make A (some A).
