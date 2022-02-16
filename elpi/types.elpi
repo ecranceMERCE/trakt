@@ -18,11 +18,19 @@ typeabbrev coqfuntype (pair term (list term)).
 % we use the annotation to remember which type was there before changing the quantifier
 type prod2 (name -> term -> term -> (term -> term) -> term).
 
-:before "copy:start"
+% cast E
+% new constructor for embedding functions (cast is just boxing the underlying term E)
+type cast term -> term.
+
+% must update copy because it does not know the new constructors
+
 copy (prod2 N T T' F) (prod2 N T1 T1' F1) :-
   !, copy T T1,
   copy T' T1',
   pi x\ copy (F x) (F1 x).
+
+copy (cast T) (cast T') :-
+  copy T T'.
 
 % type variance annotation, so that logical connectors like implication or negation are supported
 kind type-variance type.

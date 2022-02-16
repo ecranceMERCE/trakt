@@ -98,3 +98,36 @@ build.aux (proof.lift-eq TVar CtxF EqProof) Proof :-
 
 build.aux (proof.lift-logic LProof ArgProofs) (app [LProof|CoqArgProofs]) :-
   std.map ArgProofs build.aux CoqArgProofs.
+
+pred clear-custom-terms-in-proof i:proof, o:proof.
+
+clear-custom-terms-in-proof (proof.trans TVar Proofs) (proof.trans TVar Proofs') :-
+  std.map Proofs clear-custom-terms-in-proof Proofs'.
+
+clear-custom-terms-in-proof (proof.lift-eq TVar CtxF EqProof) (proof.lift-eq TVar CtxF' EqProof') :-
+  pi x\ clear-custom-terms (CtxF x) (CtxF' x),
+  clear-custom-terms EqProof EqProof'.
+
+clear-custom-terms-in-proof (proof.of-term T) (proof.of-term T') :-
+  clear-custom-terms T T'.
+
+clear-custom-terms-in-proof
+  (proof.lift-logic LProof ArgProofs) (proof.lift-logic LProof' ArgProofs') :-
+    clear-custom-terms LProof LProof',
+    std.map ArgProofs clear-custom-terms-in-proof ArgProofs'.
+
+clear-custom-terms-in-proof (proof.forall T PF CoqPF) (proof.forall T' PF' CoqPF') :-
+  clear-custom-terms T T',
+  pi x\ clear-custom-terms-in-proof (PF x) (PF' x),
+  pi p\ clear-custom-terms (CoqPF p) (CoqPF' p).
+
+clear-custom-terms-in-proof (proof.forall2 T U PF CoqPF) (proof.forall2 T' U' PF' CoqPF') :-
+  clear-custom-terms T T',
+  pi t\ clear-custom-terms (U t) (U' t),
+  pi x\ pi y\ clear-custom-terms-in-proof (PF x y) (PF' x y),
+  pi p\ clear-custom-terms (CoqPF p) (CoqPF' p).
+
+clear-custom-terms-in-proof (proof.none T) (proof.none T') :-
+  clear-custom-terms T T'.
+
+type proof.none (term -> proof).

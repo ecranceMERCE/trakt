@@ -41,12 +41,13 @@ preprocess-extra Term Context ETarget LTarget TVar MustGeneralise Term' TypedFin
     preprocess Term3 ETarget LTarget TVar (t\ t) Term4 Proof,
 
     % 5. build Coq terms
-    clear-prod2 Term4 Term',
-    build Proof CoqProof,
+    clear-custom-terms Term4 Term',
+    clear-custom-terms-in-proof Proof Proof',
+    build Proof' CoqProof,
     if (Term' = Term1) (
       TypedFinalProof = {{ @id lp:Term1 }}
     ) (std.do! [
-      clear-prod2 CoqProof CleanCoqProof,
+      clear-custom-terms CoqProof CleanCoqProof,
       coq.elaborate-skeleton CleanCoqProof _ CleanTypedCoqProof ok,
       if (TVar = covariant) (
         FinalProof = fun _ Term' (p\ GenProofF (B2PProofF (app [CleanTypedCoqProof, p])))

@@ -178,9 +178,10 @@ preprocess {{ False }} _ LTarget TVar _ OutTerm Proof :-
 % in the (RE (E Term)) case, we want to preprocess the subterm so that E is pushed
 % to the leaves of the AST as much as possible, and RE will be part of the definition of the
 % new function right above the current term (so the one in CtxF)
-preprocess (app [RE, app [E, Term]]) ETarget LTarget TVar CtxF (app [RE, Term']) Proof :-
-  embedding _ ETarget E RE _ _ _ _ _, !,
-  preprocess (app [E, Term]) ETarget LTarget TVar (t\ CtxF (app [RE, t])) Term' Proof.
+preprocess
+  (app [cast RE, app [cast E, Term]]) ETarget LTarget TVar CtxF (app [cast RE, Term']) Proof :-
+    embedding _ ETarget E RE _ _ _ _ _, !,
+    preprocess (app [cast E, Term]) ETarget LTarget TVar (t\ CtxF (app [RE, t])) Term' Proof.
 
 % iff has a special case because argument positions have double variance
 preprocess {{ lp:A <-> lp:B }} ETarget LTarget TVar _ OutTerm Proof :- !, std.do! [
@@ -234,7 +235,7 @@ preprocess (app [F|Args]) ETarget LTarget TVar _ OutTerm Proof :-
 % embedded (or not) function application (symbol)
 preprocess Term ETarget LTarget TVar CtxF Term' Proof :-
   ((
-    Term = app [E, app [F|Args]],
+    Term = app [cast E, app [F|Args]],
     embedding _ ETarget E _ _ _ _ _ _, !
   ); (
     Term = app [F|Args]
@@ -312,7 +313,7 @@ preprocess (app [F|Args]) ETarget LTarget TVar CtxF OutTerm Proof :-
   Proof = proof.trans TVar [RwProof|ArgProofs].
 
 % embedded symbol of arity 0
-preprocess (app [E, X]) ETarget _ TVar CtxF X' Proof :-
+preprocess (app [cast E, X]) ETarget _ TVar CtxF X' Proof :-
   embedding _ ETarget E _ _ _ _ _ _,
   ((
     symbol X X' EqProof, !
@@ -324,7 +325,7 @@ preprocess (app [E, X]) ETarget _ TVar CtxF X' Proof :-
   Proof = proof.lift-eq TVar CtxF EqProof.
 
 % embedded variable or constant
-preprocess (app [E, X]) ETarget _ _ CtxF (app [E, X]) (proof.none (CtxF (app [E, X]))) :-
+preprocess (app [cast E, X]) ETarget _ _ CtxF (app [cast E, X]) (proof.none (CtxF (app [E, X]))) :-
   embedding _ ETarget E _ _ _ _ _ _,
   ( ( decl X _ _, ! )
   ; ( def X _ _ _, ! )
@@ -334,7 +335,7 @@ preprocess (app [E, X]) ETarget _ _ CtxF (app [E, X]) (proof.none (CtxF (app [E,
   ), !.
 
 % embedded function application (unknown)
-preprocess (app [E, app [F|Args]]) ETarget LTarget TVar CtxF (app [E, Term]) Proof :-
+preprocess (app [cast E, app [F|Args]]) ETarget LTarget TVar CtxF (app [cast E, Term]) Proof :-
     embedding _ ETarget E _ _ _ _ _ _, !,
     CtxF' = (ts\ CtxF (app [E, app [F|ts]])),
     try-add-embedding-identity.list ETarget Args TVar CtxF' EmbeddedArgs ArgEmbeddingIdProofs,
@@ -377,9 +378,9 @@ pred preprocess.args.aux
   o:(list term), o:(list proof).
 
 preprocess.args.aux TermsOk [Term|Terms] ETarget LTarget TVar CtxF [Term'|Terms'] [Proof|Proofs] :-
-    arg-context-from-position CtxF TermsOk Terms CtxTermF,
-    preprocess Term ETarget LTarget TVar CtxTermF Term' Proof,
-    std.append TermsOk [Term'] TermsOk',
-    preprocess.args.aux TermsOk' Terms ETarget LTarget TVar CtxF Terms' Proofs.
+  arg-context-from-position CtxF TermsOk Terms CtxTermF,
+  preprocess Term ETarget LTarget TVar CtxTermF Term' Proof,
+  std.append TermsOk [Term'] TermsOk',
+  preprocess.args.aux TermsOk' Terms ETarget LTarget TVar CtxF Terms' Proofs.
 
 preprocess.args.aux _ [] _ _ _ _ [] [].

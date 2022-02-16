@@ -108,11 +108,11 @@ map-merge M1 M2 M :-
 % add a forward embedding function to a term if it exists
 pred try-add-forward-embedding i:term, i:term, o:term.
 
-try-add-forward-embedding ETarget Term (app [E, Term]) :-
+try-add-forward-embedding ETarget Term (app [cast E, Term]) :-
   coq.typecheck Term T ok,
   embedding T ETarget E _ _ _ _ _ _, !.
 
-try-add-forward-embedding ETarget Term (app [E, Term]) :-
+try-add-forward-embedding ETarget Term (app [cast E, Term]) :-
   coq.typecheck Term T' ok,
   embedding T ETarget E _ _ _ _ _ _,
   coq.unify-eq T' T ok, !.
@@ -171,12 +171,12 @@ remove-bool-cst-eq.list [Term|Terms] [TVar|TVars] [Proof|Proofs] [Term'|Terms'] 
 % rewrite a term, adding an identity formed by the composition of 2 embedding functions
 pred try-add-embedding-identity i:term, i:term, i:type-variance, i:(term -> term), o:term, o:proof.
 
-try-add-embedding-identity ETarget Term TVar CtxF (app [RE, app [E, Term]]) Proof :-
+try-add-embedding-identity ETarget Term TVar CtxF (app [cast RE, app [cast E, Term]]) Proof :-
   coq.typecheck Term T ok,
   embedding T ETarget E RE FBInv _ _ _ _, !,
   Proof = proof.lift-eq TVar CtxF (app [FBInv, Term]).
 
-try-add-embedding-identity ETarget Term TVar CtxF (app [RE, app [E, Term]]) Proof :-
+try-add-embedding-identity ETarget Term TVar CtxF (app [cast RE, app [cast E, Term]]) Proof :-
   conversion-allowed {term-head Term},
   coq.typecheck Term T' ok,
   embedding T ETarget E RE FBInv _ _ _ _,
@@ -584,10 +584,12 @@ remove-embeddings-around X (prod2 N T1 T1' F) FT ETarget (prod2 N T2 T2' F') :-
   remove-embeddings-around X T1 FT ETarget T2,
   remove-embeddings-around X T1' FT ETarget T2'.
 
-remove-embeddings-around X (app [E, X]) (pr T []) ETarget X :-
+remove-embeddings-around X (app [Emb, X]) (pr T []) ETarget X :-
+  (Emb = E ; Emb = cast E),
   embedding T ETarget E _ _ _ _ _ _, !.
 
-remove-embeddings-around X (app [E, app [X|Args]]) (pr T ArgTs) ETarget (app [X|Args'']) :-
+remove-embeddings-around X (app [Emb, app [X|Args]]) (pr T ArgTs) ETarget (app [X|Args'']) :-
+  (Emb = E ; Emb = cast E),
   embedding T ETarget E _ _ _ _ _ _, !,
   remove-head-reverse-embedding.list Args ArgTs ETarget Args',
   remove-embeddings-around.list X Args' (pr T ArgTs) ETarget Args''.
@@ -612,7 +614,8 @@ remove-embeddings-around.list X [Term|Terms] FT ETarget [Term'|Terms'] :-
 
 pred remove-head-reverse-embedding i:term, i:term, i:term, o:term.
 
-remove-head-reverse-embedding (app [RE, Term]) T ETarget Term :-
+remove-head-reverse-embedding (app [REmb, Term]) T ETarget Term :-
+  (REmb = RE ; REmb = cast RE),
   embedding T ETarget _ RE _ _ _ _ _, !.
 
 remove-head-reverse-embedding Term _ _ Term.
@@ -625,26 +628,28 @@ remove-head-reverse-embedding.list [Term|Terms] [T|Ts] ETarget [Term'|Terms'] :-
   remove-head-reverse-embedding Term T ETarget Term', !,
   remove-head-reverse-embedding.list Terms Ts ETarget Terms'.
 
-% clear all uses of prod2 introduced previously during the preprocessing
-pred clear-prod2 i:term, o:term.
+% clear all uses of custom constructors introduced previously during the preprocessing
+pred clear-custom-terms i:term, o:term.
 
-clear-prod2 (prod N T F) (prod N T' F') :-
-  !, pi x\ clear-prod2 (F x) (F' x),
-  clear-prod2 T T'.
+clear-custom-terms (prod N T F) (prod N T' F') :-
+  !, pi x\ clear-custom-terms (F x) (F' x),
+  clear-custom-terms T T'.
 
-clear-prod2 (fun N T F) (fun N T' F') :-
-  !, pi x\ clear-prod2 (F x) (F' x),
-  clear-prod2 T T'.
+clear-custom-terms (fun N T F) (fun N T' F') :-
+  !, pi x\ clear-custom-terms (F x) (F' x),
+  clear-custom-terms T T'.
 
-clear-prod2 (prod2 N _ T F) (prod N T' F') :-
-  !, pi x\ clear-prod2 (F x) (F' x),
-  clear-prod2 T T'.
+clear-custom-terms (prod2 N _ T F) (prod N T' F') :-
+  !, pi x\ clear-custom-terms (F x) (F' x),
+  clear-custom-terms T T'.
 
-clear-prod2 (app [F|Args]) (app [F'|Args']) :-
-  !, std.map Args clear-prod2 Args',
-  clear-prod2 F F'.
+clear-custom-terms (cast E) E :- !.
 
-clear-prod2 Term Term.
+clear-custom-terms (app [F|Args]) (app [F'|Args']) :-
+  !, std.map Args clear-custom-terms Args',
+  clear-custom-terms F F'.
+
+clear-custom-terms Term Term.
 
 %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%
 %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%% %%%

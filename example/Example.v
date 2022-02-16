@@ -153,3 +153,16 @@ Goal forall (f : int -> nat) (x y : int) (b : bool),
 Proof.
   trakt Z Prop.
 Abort.
+
+(* ===== embeddings in source goal ============================================================== *)
+
+Axiom Z_of_int_id_embed_eq : forall (x : int), Z_of_int x = Z_of_int x.
+Trakt Add Symbol (Z_of_int) (@id Z) (Z_of_int_id_embed_eq).
+
+Axiom Z_to_int_id_embed_eq : forall (x : Z), Z_of_int (Z_to_int x) = x.
+Trakt Add Symbol (Z_to_int) (@id Z) (Z_to_int_id_embed_eq).
+
+Goal forall (x y : int), Z_to_int (Z_of_int x + Z_of_int y)%Z = intZmod.addz y x.
+Proof.
+  trakt Z bool.
+Abort.
