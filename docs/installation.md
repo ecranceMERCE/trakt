@@ -4,6 +4,7 @@ Trakt is a prototype only available on GitHub for now.
 It can be installed by running the following commands in the terminal:
 
 ```bash
+opam repo add coq-released https://coq.inria.fr/opam/released
 opam pin add coq-trakt https://github.com/ecranceMERCE/trakt.git
 ```
 
