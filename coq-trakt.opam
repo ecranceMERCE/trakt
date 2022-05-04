@@ -3,7 +3,7 @@ name: "coq-trakt"
 version: "dev"
 maintainer: "Enzo Crance <enzo.crance@inria.fr>"
 authors: [ "Enzo Crance" ]
-license: "LGPL-3"
+license: "LGPL-3.0-only"
 homepage: "https://github.com/ecranceMERCE/trakt"
 bug-reports: "https://github.com/ecranceMERCE/trakt/issues"
 dev-repo: "git+https://github.com/ecranceMERCE/trakt.git"
