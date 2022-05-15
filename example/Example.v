@@ -148,7 +148,7 @@ Abort.
 
 (* ===== with logic ============================================================================= *)
 
-Goal forall (f : int -> nat) (x y : int) (b : bool),
+Goal forall (f : int -> int) (x y : int) (b : bool),
   true = false || (b && false) || (x == x) && (f y == f y).
 Proof.
   trakt Z Prop.
