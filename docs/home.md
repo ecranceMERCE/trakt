@@ -4,5 +4,5 @@
 
 ```bash
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam pin add coq-trakt https://github.com/ecranceMERCE/trakt.git
+opam install coq-trakt
 ```

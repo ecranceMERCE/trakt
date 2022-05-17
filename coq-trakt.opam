@@ -33,3 +33,8 @@ The translation is implemented in Coq-Elpi. It is certifying (it leaves no proof
 url {
   src: "git+https://github.com/ecranceMERCE/trakt.git"
 }
+
+# url {
+#   src: "https://github.com/$YOU/foo/archive/1.0.0.tar.gz"
+#   checksum: "sha256=133f2c6de1b9b35c0b26ab3e21fa86a351fffb415d20cae714b015f95fbc3725"
+# }

@@ -1,3 +1,6 @@
+(* This example file depends on mczify (https://github.com/math-comp/mczify), in order not to lose
+   too much time re-doing similar proofs to fuel our knowledge database. *)
+
 From Coq Require Import ZArith ZifyClasses ZifyBool ZifyInst.
 From mathcomp Require Import ssrint.
 
