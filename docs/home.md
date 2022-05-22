@@ -4,5 +4,5 @@
 
 ```bash
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam install coq-trakt
+opam update && opam install coq-trakt
 ```

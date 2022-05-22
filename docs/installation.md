@@ -5,7 +5,7 @@ It can be installed by running the following commands in the terminal:
 
 ```bash
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam install coq-trakt
+opam update && opam install coq-trakt
 ```
 
 Should you prefer experimenting with the latest development version, please install with this command instead:
