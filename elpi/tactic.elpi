@@ -74,3 +74,44 @@ preprocess-extra
       coq.elaborate-skeleton FinalProof _ TypedFinalProof ok
     ])
   ].
+
+pred nat2int i:term, o:int.
+
+nat2int {{ 0 }} 0.
+nat2int {{ S lp:Nat }} N1 :-
+  nat2int Nat N,
+  N1 is N + 1.
+
+pred format-runtime-relation i:term, o:prop.
+
+format-runtime-relation RRD1 RRC1 :-
+  coq.unify-eq RRD1 {{ pair (pair (pair lp:N lp:R) lp:R') lp:Proof }} ok, !,
+  coq.elaborate-skeleton R T RE ok,
+  coq.elaborate-skeleton R' T' RE' ok,
+  coq.elaborate-skeleton Proof ProofT ProofE ok,
+  nat2int N NArgs,
+  check-relation NArgs RE T RE' T' ProofT true 0 NDrop LSource LTarget infer-target ETargetOpt,
+  zeta-reduce RE REZ,
+  fun-term-head REZ RHead,
+  RRC1 = relation RHead ETargetOpt LSource REZ NArgs RE' LTarget NDrop ProofE.
+
+format-runtime-relation RRD1 RRC1 :-
+  coq.unify-eq RRD1 {{ pair (pair (pair (pair lp:N lp:R) lp:ETarget) lp:R') lp:Proof }} ok,
+  coq.elaborate-skeleton R T RE ok,
+  coq.elaborate-skeleton R' T' RE' ok,
+  coq.elaborate-skeleton Proof ProofT ProofE ok,
+  nat2int N NArgs,
+  check-relation NArgs RE T RE' T' ProofT true 0 NDrop LSource LTarget check-only (some ETarget),
+  zeta-reduce RE REZ,
+  fun-term-head REZ RHead,
+  RRC1 = relation RHead (some ETarget) LSource REZ NArgs RE' LTarget NDrop ProofE.
+
+pred format-runtime-relation-data i:term, o:(list prop).
+
+format-runtime-relation-data RRDS [RRC1|RRC] :-
+  coq.unify-eq RRDS {{ pair lp:RRD lp:RRD1 }} ok,
+  format-runtime-relation RRD1 RRC1, !,
+  format-runtime-relation-data RRD RRC.
+
+format-runtime-relation-data RRD1 [RRC1] :-
+  format-runtime-relation RRD1 RRC1.
