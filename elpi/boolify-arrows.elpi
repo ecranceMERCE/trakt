@@ -15,6 +15,7 @@ pred boolify-arrows i:term, i:type-variance, i:prop, o:term, o:proof.
 boolify-arrows {{ lp:A -> lp:B }} TVar Toplevel OutTerm Proof :-
   coq.typecheck A {{ Prop }} ok,
   coq.typecheck B {{ Prop }} ok, !,
+  when (debug) (coq.say "boolify-arrows ->"),
   invert-variance TVar OppositeTVar,
   boolify-arrows A OppositeTVar false A' ProofA,
   if (Toplevel) (BToplevel = true) (BToplevel = false),
@@ -34,8 +35,9 @@ boolify-arrows {{ lp:A -> lp:B }} TVar Toplevel OutTerm Proof :-
     Proof = RecursiveProof
   ).
 
-boolify-arrows (prod N T F) TVar Toplevel (prod N T F') Proof :-
-  !, pi x\ decl x N T => (
+boolify-arrows (prod N T F) TVar Toplevel (prod N T F') Proof :- !,
+  when (debug) (coq.say "boolify-arrows forall" {coq.term->string T}),
+  pi x\ decl x N T => (
     boolify-arrows (F x) TVar Toplevel (F' x) (PF x),
     if (PF x = proof.none (A_ x)) (
       Proof = proof.none (prod N T F)
@@ -51,6 +53,7 @@ boolify-arrows (prod N T F) TVar Toplevel (prod N T F') Proof :-
 
 boolify-arrows (app [F|Args]) TVar _ OutTerm Proof :-
   logical-connector F F' ArgTVars ImplMorph ReflB2P ReflP2B, !,
+  when (debug) (coq.say "boolify-arrows logical" {coq.term->string F}),
   if (TVar = covariant) (
     ArgTVars' = ArgTVars,
     Refl = ReflB2P
@@ -69,7 +72,8 @@ boolify-arrows (app [F|Args]) TVar _ OutTerm Proof :-
     Proof = proof.lift-logic ImplMorph ArgProofs
   ).
 
-boolify-arrows Term _ _ Term (proof.none _).
+boolify-arrows Term _ _ Term (proof.none _) :-
+  when (debug) (coq.say "boolify-arrows none" {coq.term->string Term}).
 
 pred boolify-arrows.list i:(list term), i:(list type-variance), o:(list term), o:(list proof).
 

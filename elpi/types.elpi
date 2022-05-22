@@ -99,18 +99,21 @@ pred logical-connector
   o:term. % reflection lemma the other way
 
 pred symbol
-  o:term, % S: source symbol
-  o:term, % S': target symbol
-  o:term. % proof that embedding S gives S'
+  o:term,        % S: source symbol
+  o:option term, % target embedding type when translating the symbol
+  o:term,        % S': target symbol
+  o:term.        % proof that embedding S gives S'
 
 pred relation
-  o:term, % R: source relation
-  o:term, % type of the arguments of R
-  o:term, % output logic of R (bool or Prop)
-  o:term, % R': target relation
-  o:term, % type of the arguments of R'
-  o:term, % output logic of R'
-  o:term. % proof that embedding R is equivalent to R'
+  o:term,        % F: head term of the source relation
+  o:option term, % target embedding type when translating the relation
+  o:term,        % output logic of R (bool or Prop)
+  o:term,        % R: full source relation
+  o:int,         % number of non-type arguments in R
+  o:term,        % R': target relation
+  o:term,        % output logic of R'
+  o:int,         % number of prefix type arguments not involved in the proof
+  o:term.        % proof that embedding R is equivalent to R'
 
 pred conversion-allowed
   o:term. % head term allowed to trigger Coq conversion

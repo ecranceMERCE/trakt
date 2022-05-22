@@ -144,10 +144,8 @@ rewrite-identities.aux (app [F|Args]) ETarget LTarget TVar CtxF CondProofs Term'
   Term' = app [F|Args'].
 
 rewrite-identities.aux Term _ _ _ CtxF _ Term (proof.none (CtxF Term)) :-
-  when (Term = prod _ _ _) (
-    coq.say "rewrite-identities used with `prod` term",
-    fail
-  ).
+  when (Term = prod _ _ _)
+    (coq.error "rewrite-identities used with `prod` term").
 
 pred rewrite-identities.list
   i:(list term), i:term, i:term, i:(list type-variance), i:(std.map term term),
@@ -181,11 +179,6 @@ rewrite-identities.args.aux
 rewrite-identities.args.aux _ [] _ _ _ _ _ [] [].
 
 % util
-
-% like an IF construct but without an ELSE block
-pred when i:prop, i:prop.
-
-when Condition P :- if Condition P true.
 
 pred interleave i:(list A), i:(list A), o:(list A).
 

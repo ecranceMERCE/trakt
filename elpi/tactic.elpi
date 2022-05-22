@@ -9,15 +9,17 @@
 %                           %  (see LICENSE file for the text of the license) %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-pred preprocess-extra i:term, i:goal-ctx, i:term, i:term, i:type-variance, i:prop, o:term, o:term.
+pred preprocess-extra
+  i:term, i:goal-ctx, i:option term, i:term, i:type-variance, i:prop, o:term, o:term.
 
-preprocess-extra Term Context ETarget LTarget TVar MustGeneralise Term' TypedFinalProof :- std.do! [
+preprocess-extra
+  Term Context ETargetOpt LTarget TVar MustGeneralise Term' TypedFinalProof :- std.do! [
     % 1. make a full term
     coq.elaborate-skeleton Term _ Term1 ok,
 
     % 2. generalise
     if (MustGeneralise) (
-      generalise-free-variables Term1 ETarget Context Term2 GenProofF
+      generalise-free-variables Term1 ETargetOpt Context Term2 GenProofF
     ) (
       Term2 = Term1,
       GenProofF = (p\ p)
@@ -27,6 +29,8 @@ preprocess-extra Term Context ETarget LTarget TVar MustGeneralise Term' TypedFin
     if (LTarget = {{ Prop }}) (
       bool-to-prop Term2 TVar Term3 B2PProof,
       build B2PProof B2PCoqProof,
+      when (debug)
+        (coq.say "bool-to-prop proof" {coq.term->string B2PCoqProof}),
       if (Term3 = Term2) (
         B2PProofF = (p\ p)
       ) (
@@ -36,14 +40,27 @@ preprocess-extra Term Context ETarget LTarget TVar MustGeneralise Term' TypedFin
       Term3 = Term2,
       B2PProofF = (p\ p)
     ),
+    when (debug)
+      (coq.say "after bool to Prop (raw):" Term3),
+    when (verbose)
+      (coq.say "after bool to Prop:" {coq.term->string Term3}),
 
     % 4. launch preprocessing
-    preprocess Term3 ETarget LTarget TVar (t\ t) Term4 Proof,
+    preprocess Term3 ETargetOpt LTarget TVar (t\ t) Term4 Proof,
+
+    when (debug)
+      (coq.say "after preprocess (raw):" Term4),
 
     % 5. build Coq terms
     clear-custom-terms Term4 Term',
+    when (verbose)
+      (coq.say "after preprocess:" {coq.term->string Term'}),
     clear-custom-terms-in-proof Proof Proof',
+    when (debug)
+      (coq.say "preprocess proof (raw):" Proof'),
     build Proof' CoqProof,
+    when (debug)
+      (coq.say "preprocess proof:" {coq.term->string CoqProof}),
     if (Term' = Term1) (
       TypedFinalProof = {{ @id lp:Term1 }}
     ) (std.do! [

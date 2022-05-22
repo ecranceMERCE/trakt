@@ -15,6 +15,10 @@ From Trakt Require Import InternalProofs.
 
 Elpi Command Trakt.
 
+Elpi Query lp:{{
+  coq.option.add ["trakt.verbosity"] (coq.option.int (some 0)) ff.
+}}.
+
 Elpi Accumulate File "elpi/types.elpi".
 Elpi Typecheck.
 
@@ -44,6 +48,7 @@ Elpi Accumulate lp:{{
   operation "Add" "Symbol" add-symbol.
   operation "Add" "Relation" add-relation.
   operation "Add" "Conversion" add-conversion-allowed.
+  operation "Set" "Verbosity" set-verbosity.
 
   main [str Command, str Element|RecordData] :-
     operation Command Element Op, !,
@@ -53,7 +58,8 @@ Elpi Accumulate lp:{{
   main _ :-
     coq.error {std.string.concat "\n" [
       "command syntax error",
-      "usage: Trakt Add (Embedding|Symbol|Relation|Conversion) ...", "", ""
+      "usage: Trakt Add (Embedding|Symbol|Relation|Conversion) ...",
+      "     | Trakt Set Verbosity (0|1|2)", "", ""
     ]}.
 }}.
 Elpi Typecheck.

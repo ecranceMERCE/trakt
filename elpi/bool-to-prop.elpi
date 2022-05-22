@@ -14,8 +14,9 @@ pred bool-to-prop i:term, i:type-variance, o:term, o:proof.
 
 bool-to-prop {{ lp:A -> lp:B }} TVar {{ lp:A' -> lp:B' }} Proof :-
   coq.typecheck A {{ Prop }} ok,
-  coq.typecheck B {{ Prop }} ok,
-  !, invert-variance TVar OppositeTVar,
+  coq.typecheck B {{ Prop }} ok, !,
+  when (debug) (coq.say "bool-to-prop ->"),
+  invert-variance TVar OppositeTVar,
   bool-to-prop A OppositeTVar A' ProofA,
   bool-to-prop B TVar B' ProofB,
   if (TVar = covariant) (
@@ -24,8 +25,9 @@ bool-to-prop {{ lp:A -> lp:B }} TVar {{ lp:A' -> lp:B' }} Proof :-
     Proof = proof.lift-logic (app [{{ @impl_morph_impl }}, A', B', A, B]) [ProofA, ProofB]
   ).
 
-bool-to-prop (prod N T F) TVar (prod N T F') Proof :-
-  !, pi x\ decl x _ T => (
+bool-to-prop (prod N T F) TVar (prod N T F') Proof :- !,
+  when (debug) (coq.say "bool-to-prop forall" {coq.term->string T}),
+  pi x\ decl x _ T => (
     bool-to-prop (F x) TVar (F' x) (PF x),
     if (PF x = proof.none (A_ x)) (
       Proof = proof.none (prod N T F)
@@ -41,14 +43,16 @@ bool-to-prop (prod N T F) TVar (prod N T F') Proof :-
 
 bool-to-prop Term TVar {{ True }} Proof :-
   (Term = {{ true = true }} ; Term = {{ false = false }}), !,
+  when (debug) (coq.say "bool-to-prop trivial boolean equality" Term),
   if (TVar = covariant) (
     Proof = proof.of-term {{ refl_true_impl_contra }}
   ) (
     Proof = proof.of-term {{ refl_true_impl }}
   ).
 
-bool-to-prop {{ false = true }} TVar {{ False }} Proof :-
-  !, if (TVar = covariant) (
+bool-to-prop {{ false = true }} TVar {{ False }} Proof :- !,
+  when (debug) (coq.say "bool-to-prop false = true"),
+  if (TVar = covariant) (
     Proof = proof.of-term {{ false_bool_impl_contra }}
   ) (
     Proof = proof.of-term {{ false_bool_impl }}
@@ -57,6 +61,7 @@ bool-to-prop {{ false = true }} TVar {{ False }} Proof :-
 bool-to-prop Term TVar Term' Proof' :-
   Term = {{ lp:B = lp:X }},
   (B = {{ true }} ; B = {{ false }}), !,
+  when (debug) (coq.say "bool-to-prop ?boolean = _"),
   bool-to-prop {{ @eq bool lp:X lp:B }} TVar Term' Proof,
   if (TVar = covariant) (
     SymProof = proof.of-term {{ @eq_sym bool lp:X lp:B }}
@@ -65,8 +70,9 @@ bool-to-prop Term TVar Term' Proof' :-
   ),
   Proof' = proof.trans TVar [SymProof, Proof].
 
-bool-to-prop {{ lp:Term = false }} TVar Term' Proof' :-
-  !, bool-to-prop {{ @eq bool (negb lp:Term) true }} TVar Term' Proof,
+bool-to-prop {{ lp:Term = false }} TVar Term' Proof' :- !,
+  when (debug) (coq.say "bool-to-prop _ = false"),
+  bool-to-prop {{ @eq bool (negb lp:Term) true }} TVar Term' Proof,
   if (TVar = covariant) (
     NegbProof = proof.of-term {{ false_negb }}
   ) (
@@ -76,6 +82,7 @@ bool-to-prop {{ lp:Term = false }} TVar Term' Proof' :-
 
 bool-to-prop {{ lp:{{ app [F|Args] }} = true }} TVar OutTerm Proof :-
   logical-connector F' F ArgTVars ImplMorph ReflB2P ReflP2B, !,
+  when (debug) (coq.say "bool-to-prop logical connector" {coq.term->string F}),
   if (TVar = covariant) (
     ArgTVars' = ArgTVars,
     Refl = ReflP2B
@@ -91,45 +98,33 @@ bool-to-prop {{ lp:{{ app [F|Args] }} = true }} TVar OutTerm Proof :-
   Proof = proof.trans TVar [ReflectionProof, ArgB2PProof].
 
 bool-to-prop {{ lp:{{ app [F|Args] }} = true }} TVar OutTerm Proof :-
-  ((
-    relation F T {{ bool }} F' T' {{ Prop }} EquProof,
-    if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T), !,
-    Args' = Args
-  ); (
-    conversion-allowed F,
-    relation R T {{ bool }} F' T {{ Prop }} EquProof,
-    coq.unify-eq F R ok,
-    if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T), !,
-    Args' = Args
-  ); (
-    Args = [X|Args'], not (Args' = []),
-    relation (app [F, X]) T {{ bool }} F' T {{ Prop }} EquProof,
-    if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T), !
-  ); (
-    Args = [X|Args'], not (Args' = []),
-    conversion-allowed F,
-    relation (app [F, X']) T {{ bool }} F' T {{ Prop }} EquProof,
-    coq.unify-eq X X' ok,
-    if (T = {{ bool }}) (T' = {{ Prop }}) (T' = T)
-  )), !,
+  (
+    relation F none {{ bool }} R NArgs R' {{ Prop }} NDrop EquProof
+  ; (
+    conversion-allowed {term-head F},
+    relation G none {{ bool }} R NArgs R' {{ Prop }} NDrop EquProof,
+    coq.unify-eq F G ok
+  )),
+  fill-vars R FullR UsedTypeArgs,
+  when (FullR = app [F|RArgs]) (unify-args Args RArgs), !,
+  when (debug) (coq.say "bool-to-prop relation" {coq.term->string FullR}),
+  std.take-last NArgs Args NonTypeArgs,
+  std.append UsedTypeArgs NonTypeArgs ProofArgs,
+  RwLemma = app [EquProof|ProofArgs],
+  coq.typecheck RwLemma LemmaT ok,
   if (TVar = covariant) (
-    RwProof = proof.of-term {{ iffRL lp:{{ app [EquProof|Args']}} }}
+    Proof = proof.of-term {{ iffRL lp:RwLemma }}
   ) (
-    RwProof = proof.of-term {{ iffLR lp:{{ app [EquProof|Args']}} }}
+    Proof = proof.of-term {{ iffLR lp:RwLemma }}
   ),
-  if (T = {{ bool }}) (
-    replicate {std.length Args'} TVar ArgTVars,
-    bool-to-prop.list Args' ArgTVars PropArgs ArgProofs,
-    beta-reduce-app (app [F'|PropArgs]) OutTerm,
-    Proof = proof.trans TVar [RwProof|ArgProofs]
-  ) (
-    beta-reduce-app (app [F'|Args']) OutTerm,
-    Proof = RwProof
-  ).
+  std.drop NDrop UsedTypeArgs UsedTypeArgs',
+  std.append UsedTypeArgs' NonTypeArgs OutTermArgs,
+  coq.mk-app R' OutTermArgs OutTerm.
 
 % here we do not give the type for the identity proof, because it would imply to rewrite this
 % predicate with a context argument; it seems the elaborator is able to build the proof anyway
-bool-to-prop Term _ Term (proof.none _).
+bool-to-prop Term _ Term (proof.none _) :-
+  when (debug) (coq.say "bool-to-prop none" {coq.term->string Term}).
 
 pred bool-to-prop.list i:(list term), i:(list type-variance), o:(list term), o:(list proof).
 
@@ -138,11 +133,3 @@ bool-to-prop.list [] [] [] [].
 bool-to-prop.list [T|Ts] [TVar|TVars] [T'|Ts'] [P|Ps] :-
   bool-to-prop T TVar T' P,
   bool-to-prop.list Ts TVars Ts' Ps.
-
-pred replicate i:int, i:A, o:(list A).
-
-replicate 0 _ [] :- !.
-
-replicate N X [X|L] :-
-  N1 is N - 1,
-  replicate N1 X L.

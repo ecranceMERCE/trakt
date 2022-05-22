@@ -130,9 +130,6 @@ clear-custom-terms-in-proof (proof.forall2 T U PF CoqPF) (proof.forall2 T' U' PF
 clear-custom-terms-in-proof (proof.none T) (proof.none T') :-
   clear-custom-terms T T'.
 
-type proof.none (term -> proof).
-
-
 % util
 
 % compose a list of functions

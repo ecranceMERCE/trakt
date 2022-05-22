@@ -9,23 +9,21 @@
 %                           %  (see LICENSE file for the text of the license) %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+pred verbose.
+
+verbose :-
+  coq.option.get ["trakt.verbosity"] (coq.option.int (some N)),
+  N > 0.
+
+pred debug.
+
+debug :-
+  coq.option.get ["trakt.verbosity"] (coq.option.int (some 2)).
+
 pred invert-variance i:type-variance, o:type-variance.
 
 invert-variance covariant contravariant.
 invert-variance contravariant covariant.
-
-% beta-reduce the head of a function application until no more lambdas are applied
-pred beta-reduce-app i:term, o:term.
-
-beta-reduce-app (app [fun _ _ F, X|Args]) Term' :-
-  !, beta-reduce-app (app [F X|Args]) Term,
-  if (Term = app [OneTermOnly]) (
-    Term' = OneTermOnly
-  ) (
-    Term' = Term
-  ).
-
-beta-reduce-app Term Term.
 
 % make a context with its variable being at a specific position in a function application,
 % from the part of the AST above the function application (context of a list of terms), the
@@ -78,58 +76,21 @@ remove-bool-cst-eq.list [Term|Terms] [TVar|TVars] [Proof|Proofs] [Term'|Terms'] 
 
 % make a simple function type closer to a target by replacing the types of the arguments
 % everytime the type to replace is embeddable into the target type
-pred targetify-type i:term, i:term, o:term.
+pred targetify-type i:option term, i:term, o:term.
 
-targetify-type ETarget {{ lp:T1 -> lp:T2 }} {{ lp:T1' -> lp:T2' }} :- !,
-  targetify-type ETarget T1 T1',
-  targetify-type ETarget T2 T2'.
+targetify-type (some _ as ETargetOpt) {{ lp:T1 -> lp:T2 }} {{ lp:T1' -> lp:T2' }} :- !,
+  targetify-type ETargetOpt T1 T1',
+  targetify-type ETargetOpt T2 T2'.
 
-targetify-type ETarget T ETarget :-
+targetify-type (some ETarget) T ETarget :-
   embedding T ETarget _ _ _ _ _ _ _, !.
 
-targetify-type ETarget T ETarget :-
+targetify-type (some ETarget) T ETarget :-
   conversion-allowed {term-head T},
   embedding T' ETarget _ _ _ _ _ _ _,
   coq.unify-eq T' T ok, !.
 
 targetify-type _ T T.
-
-% completely remove any embedding found in a term
-% pred remove-embeddings i:term, o:term.
-
-% remove-embeddings {{ lp:A -> lp:B }} {{ lp:A' -> lp:B' }} :- !,
-%   remove-embeddings A A',
-%   remove-embeddings B B'.
-
-% remove-embeddings (app [E, Term]) Term' :-
-%   embedding _ _ E _ _ _ _ _ _, !,
-%   remove-embeddings Term Term'.
-
-% remove-embeddings (app [RE, Term]) Term' :-
-%   embedding _ _ _ RE _ _ _ _ _, !,
-%   remove-embeddings Term Term'.
-
-% remove-embeddings (app [F|Args]) (app [F|Args']) :-
-%   !, std.map Args remove-embeddings Args'.
-
-% remove-embeddings Term Term.
-
-% abstract a function application argument without abstracting backward embeddings
-% F Args -> generate an elpi function for each argument in Args
-% the function will be λx.x except if the argument starts with a backward embedding
-% in that case it will be kept (λx. RE x)
-% pred abstract-arg i:term, i:term, o:(term -> term).
-
-% abstract-arg ETarget (app [RE, _]) (x\ app [RE, x]) :-
-%   embedding _ ETarget _ RE _ _ _ _ _, !.
-
-% abstract-arg _ _ (x\ x).
-
-% receive a context, a function, and a list of abstracted arguments (elpi functions made
-% with abstract-arg), and make a Coq function to apply these arguments to variables and bind them
-% input : Ctx / F / f1...fn / T1...Tn 
-% output : fun (a1 : T1) ... (an : Tn) => Ctx (F (f1 a1) ... (fn an))
-% (the a1...an are created and bound)
 
 pred make-fun-type i:term, o:coqfuntype.
 
@@ -138,22 +99,14 @@ make-fun-type T (pr OutT InTs) :-
 
 pred make-fun-type.aux i:term, o:term, o:(list term).
 
-make-fun-type.aux {{ lp:A -> lp:B }} OutT [A|InB] :-
-  !, make-fun-type.aux B OutT InB.
+make-fun-type.aux {{ lp:A -> lp:B }} OutT [A|InB] :- !,
+  make-fun-type.aux B OutT InB.
+
+make-fun-type.aux T OutT [A|InB] :-
+  coq.unify-eq T {{ lp:A -> lp:B }} ok, !,
+  make-fun-type.aux B OutT InB.
 
 make-fun-type.aux T T [].
-
-% pred make-coq-type i:coqfuntype, o:term.
-
-% make-coq-type (pr OutT InTs) T :-
-%   make-coq-type.aux OutT InTs T.
-
-% pred make-coq-type.aux i:term, i:(list term), o:term.
-
-% make-coq-type.aux OutT [A|InB] {{ lp:A -> lp:B }} :-
-%   !, make-coq-type.aux OutT InB B.
-
-% make-coq-type.aux T [] T.
 
 % clear all uses of custom constructors introduced previously during the preprocessing
 pred clear-custom-terms i:term, o:term.
@@ -184,3 +137,25 @@ term-head (app [app L|_]) H :- !,
   term-head (app L) H.
 term-head (app [H|_]) H :- !.
 term-head Term Term.
+
+pred fill-vars i:term, o:term, o:list term.
+
+fill-vars (fun _ _ F) Out [X|Used] :- !,
+  fill-vars (F X) Out Used.
+fill-vars T T [].
+
+pred unify-args i:list term, o:list term.
+
+unify-args [] _ :- !.
+unify-args _ [] :- !.
+unify-args [A|As] [A|Bs] :- !,
+  unify-args As Bs.
+unify-args [A|As] [B|Bs] :-
+  conversion-allowed {term-head A},
+  coq.unify-eq A B ok,
+  unify-args As Bs.
+
+pred when i:prop, i:prop.
+
+when Condition Code :-
+  if Condition Code true.

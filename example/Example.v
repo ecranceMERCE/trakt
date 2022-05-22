@@ -11,6 +11,8 @@ Local Delimit Scope Z_scope with Z.
 
 From Trakt Require Import Trakt.
 
+Trakt Set Verbosity 1.
+
 Notation Z_to_int := ssrZ.int_of_Z.
 
 Lemma int_Z_gof_id : forall (x : int), x = Z_to_int (Z_of_int x).
@@ -50,7 +52,7 @@ Proof.
   apply Z.eqb_eq.
 Qed.
 
-Trakt Add Relation (@eq int) (Z.eqb) (eqint_Zeqb_equiv).
+Trakt Add Relation 2 (@eq int) (Z.eqb) (eqint_Zeqb_equiv).
 
 Goal forall (x y : int), intZmod.addz x y = intZmod.addz y x.
 Proof.
@@ -124,7 +126,7 @@ Proof.
   apply Z_of_nat_eqb_iff.
 Qed.
 
-Trakt Add Relation (Nat.eqb) (Z.eqb) (Nateqb_Zeqb_equiv).
+Trakt Add Relation 2 (Nat.eqb) (Z.eqb) (Nateqb_Zeqb_equiv).
 
 Lemma eqnat_eqZ_equiv : forall (n m : nat), n = m <-> Z.of_nat n = Z.of_nat m.
 Proof.
@@ -132,7 +134,7 @@ Proof.
   apply Nat2Z.inj_iff.
 Qed.
 
-Trakt Add Relation (@eq nat) (@eq Z) (eqnat_eqZ_equiv).
+Trakt Add Relation 2 (@eq nat) (@eq Z) (eqnat_eqZ_equiv).
 
 Lemma eqnat_Zeqb_equiv : forall (n m : nat), n = m <-> (Z.of_nat n =? Z.of_nat m)%Z = true.
 Proof.
@@ -142,14 +144,14 @@ Proof.
   apply Z.eqb_eq.
 Qed.
 
-Trakt Add Relation (@eq nat) (Z.eqb) (eqnat_Zeqb_equiv).
+Trakt Add Relation 2 (@eq nat) (Z.eqb) (eqnat_Zeqb_equiv).
 
 Lemma Nateqb_eqnat_refl : forall (n m : nat), Nat.eqb n m = true <-> n = m.
 Proof.
   apply Nat.eqb_eq.
 Qed.
 
-Trakt Add Relation (Nat.eqb) (@eq nat) (Nateqb_eqnat_refl).
+Trakt Add Relation 2 (Nat.eqb) (@eq nat) (Nateqb_eqnat_refl).
 
 Goal forall (n m : nat), Nat.eqb (S n + m) (m + S n) = true.
 Proof.
@@ -174,7 +176,7 @@ Module E.
   Qed.
 End E.
 
-Trakt Add Relation (@eq E) (E.eqb) (E.eq_eqb).
+Trakt Add Relation 2 (@eq E) (E.eqb) (E.eq_eqb).
 
 Goal forall (x : E), x = x.
 Proof.
@@ -183,8 +185,11 @@ Abort.
 
 (* ===== uninterpreted function ================================================================= *)
 
+Trakt Add Relation 2 (@eq nat) (Nat.eqb) (fun n m => iff_sym (Nateqb_eqnat_refl n m)).
+
 Goal forall (f : nat -> nat) (n m : nat), f (S n + m) = f(m + S n).
 Proof.
+  (* trakt bool. *)
   trakt Z bool.
 Abort.
 
@@ -219,15 +224,14 @@ Proof. reflexivity. Qed.
 
 Trakt Add Symbol (1%R : int) (1%Z) (one_Z1_embed_eq).
 
-(* Require Import ssrefl *)
 Lemma eqopint_eqint_equiv : forall (x y : int), x == y <-> x = y.
 Proof.
   by move=> x y; split=> /eqP.
 Qed.
 
-Trakt Add Relation (@eq_op int_eqType : int -> int -> bool) (@eq int) (eqopint_eqint_equiv).
+Trakt Add Relation 2 (@eq_op int_eqType : int -> int -> bool) (@eq int) (eqopint_eqint_equiv).
 
-Trakt Add Relation (@eq int) (@eq Z) (eqint_eqZ_equiv).
+Trakt Add Relation 2 (@eq int) (@eq Z) (eqint_eqZ_equiv).
 
 Trakt Add Conversion (@GRing.add).
 Trakt Add Conversion (@GRing.mul).
@@ -239,6 +243,24 @@ Goal forall (f : int -> int) (x : int), x == 4 = true -> f (2%:Z * x + 1) == f 5
 Proof.
   (* Set Printing All. *)
   trakt Z Prop.
+Abort.
+
+Trakt Add Conversion (Num.NumDomain.porderType).
+
+Lemma Orderle_int_Zleb_equiv : forall (x y : int), x <= y = (Z_of_int x <=? Z_of_int y)%Z.
+Proof.
+  apply (@TBOpInj _ _ _ _ _ _ _ _ _ _ Op_int_le).
+Qed.
+
+Trakt Add Relation 2
+  (@Order.le ring_display int_porderType)
+  (Z.leb)
+  (Orderle_int_Zleb_equiv).
+
+Goal forall (f : int -> int) (x : int), 1 <= x = true -> f x <= f x + x = true.
+Proof.
+  (* Set Printing All. *)
+  trakt Z bool.
 Abort.
 
 (* ===== with logic ============================================================================= *)
@@ -266,4 +288,33 @@ Trakt Add Symbol (Z_to_int) (@id Z) (Z_to_int_id_embed_eq).
 Goal forall (x y : int), Z_to_int (Z_of_int x + Z_of_int y)%Z = intZmod.addz y x.
 Proof.
   trakt Z bool.
+Abort.
+
+(* ===== relation families ====================================================================== *)
+
+Definition bitvector n := Vector.t bool n.
+
+Module bitvector.
+  Definition eqb (n : nat) (v v' : bitvector n) : bool :=
+    @VectorEq.eqb bool Bool.eqb n n v v'.
+    
+  Definition eqb_eq : forall (n : nat) (v v' : bitvector n), eqb n v v' = true <-> v = v' :=
+    @VectorEq.eqb_eq bool Bool.eqb
+      (fun b b' => iff_sym (Bool.reflect_iff (b = b') (Bool.eqb b b') (Bool.eqb_spec b b'))).
+End bitvector.
+
+Trakt Add Relation 2
+  (fun n => @eq (bitvector n))
+  (fun n => bitvector.eqb n)
+  (fun n v v' => iff_sym (bitvector.eqb_eq n v v')).
+
+Trakt Add Relation 2
+  (fun n => bitvector.eqb n)
+  (fun n => @eq (bitvector n))
+  (bitvector.eqb_eq).
+
+Goal forall s (v : bitvector s), v = v.
+Proof.
+  trakt bool.
+  trakt Prop.
 Abort.
