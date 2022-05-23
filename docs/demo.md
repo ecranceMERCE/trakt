@@ -43,13 +43,13 @@ Trakt Add Embedding (nat) (Z) (Z.of_nat) (Z.to_nat) (nat_Z_gof_id) (nat_Z_fog_co
 ```
 
 Similar declarations must be done on `int`.
-Then, we need to declare the equality as a **relation**:
+Then, we need to declare the equality as a **relation** (the `2` argument here indicates that the relation is binary):
 
 ```coq
 Lemma eqnat_Zeqb_equiv : forall (n m : nat), n = m <-> Z.eqb (Z.of_nat n) (Z.of_nat m) = true.
 Proof. (* ... *) Qed.
 
-Trakt Add Relation (@eq nat) (Z.eqb) (eqnat_Zeqb_equiv).
+Trakt Add Relation 2 (@eq nat) (Z.eqb) (eqnat_Zeqb_equiv).
 ```
 
 Next, we need Trakt to consider the addition and zero on `int` as known **symbols**:
