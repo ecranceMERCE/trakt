@@ -120,7 +120,8 @@ preprocess (prod N T F) ETargetOpt LTarget TVar _ OutTerm Proof :- !,
             pi c\ decl c _ (CondF x') => (
               std.map.add x' c EmptyMap (CondProofs x' c),
               rewrite-identities (BF x') ETarget LTarget (CondProofs x' c) (RwProofC x' c),
-              build (RwProofC x' c) (CoqRwProofC x' c)
+              clear-custom-terms-in-proof (RwProofC x' c) (RwProofC' x' c),
+              build (RwProofC' x' c) (CoqRwProofC x' c)
             ),
             if (CoqRwProofC x' c = {{ id }}) (
               ProofF = (p\ {{
@@ -135,7 +136,8 @@ preprocess (prod N T F) ETargetOpt LTarget TVar _ OutTerm Proof :- !,
           ) (
             % no condition in the final proof
             rewrite-identities (BF x') ETarget LTarget EmptyMap (RwProof x'),
-            build (RwProof x') (CoqRwProof x'),
+            clear-custom-terms-in-proof (RwProof x') (RwProof' x'),
+            build (RwProof' x') (CoqRwProof x'),
             if (CoqRwProof x' = {{ id }}) (
               ProofF = (p\ {{
                 fun (H : lp:{{ prod N T F }}) (x' : lp:T') =>

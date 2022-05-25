@@ -112,7 +112,9 @@ rewrite-identities.aux (app [F|Args]) ETarget LTarget TVar _ CondProofs Term' Rw
   Term' = app [F|Args'].
 
 rewrite-identities.aux
-  (app [E, app [RE, Term]]) ETarget LTarget TVar CtxF CondProofs Term' RwProof :-
+  (app [CE, app [CRE, Term]]) ETarget LTarget TVar CtxF CondProofs Term' RwProof :-
+    (CE = E ; CE = cast E),
+    (CRE = RE ; CRE = cast RE),
     embedding _ ETarget E RE _ BFPartInv none _ _, !,
     rewrite-identities.aux
       Term ETarget LTarget TVar (t\ CtxF (app [E, app [RE, t]])) CondProofs Term' RwProof1,
@@ -120,7 +122,9 @@ rewrite-identities.aux
     RwProof = proof.trans TVar [RwProof1, RwProof2].
 
 rewrite-identities.aux
-  (app [E, app [RE, Term]]) ETarget LTarget TVar CtxF CondProofs Term' RwProof :-
+  (app [CE, app [CRE, Term]]) ETarget LTarget TVar CtxF CondProofs Term' RwProof :-
+    (CE = E ; CE = cast E),
+    (CRE = RE ; CRE = cast RE),
     embedding _ ETarget E RE _ BFPartInv (some LTarget) _ _, !,
     rewrite-identities.aux
       Term ETarget LTarget TVar (t\ CtxF (app [E, app [RE, t]])) CondProofs Term' RwProof1,
