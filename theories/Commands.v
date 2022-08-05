@@ -37,6 +37,8 @@ Elpi Typecheck.
 Elpi Accumulate lp:{{
   pred elaborate-argument i:argument, o:argument.
 
+  elaborate-argument (str S) (trm ET) :-
+    !, coq.elaborate-skeleton (global {coq.locate S}) _ ET ok.
   elaborate-argument (trm T) (trm ET) :-
     !, coq.elaborate-skeleton T _ ET ok.
 
