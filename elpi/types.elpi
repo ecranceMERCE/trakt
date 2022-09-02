@@ -117,3 +117,7 @@ pred relation
 
 pred conversion-allowed
   o:term. % head term allowed to trigger Coq conversion
+
+kind relation-action type.
+type check-only relation-action.
+type infer-target relation-action.

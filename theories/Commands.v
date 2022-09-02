@@ -19,7 +19,7 @@ Elpi Query lp:{{
   coq.option.add ["trakt.verbosity"] (coq.option.int (some 0)) ff.
 }}.
 
-Elpi Accumulate File "elpi/types.elpi".
+Elpi Accumulate File "types.elpi" From Trakt.Elpi.
 Elpi Typecheck.
 
 From Trakt Require Export Database.
@@ -28,10 +28,10 @@ Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
 
-Elpi Accumulate File "elpi/common.elpi".
+Elpi Accumulate File "common.elpi" From Trakt.Elpi.
 Elpi Typecheck.
 
-Elpi Accumulate File "elpi/commands.elpi".
+Elpi Accumulate File "commands.elpi" From Trakt.Elpi.
 Elpi Typecheck.
 
 Elpi Accumulate lp:{{
