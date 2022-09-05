@@ -134,10 +134,8 @@ Elpi Accumulate lp:{{
     (LTarget = {{ Prop }} ; LTarget = {{ bool }}),
     (H = global _ ; def H _ _ _ ; decl H _ _), !,
     coq.string->name S Name,
-    std.assert! (format-runtime-relation-data RuntimeRelData RuntimeRelCtx)
-      "wrong runtime relations format",
     coq.typecheck H T ok,
-    RuntimeRelCtx =>
+    [] =>
       preprocess-extra T [] none LTarget contravariant false T' P,
       refine (let Name T' (app [P, H]) (t\ {{ _ : lp:GoalTy }})) Goal NewGoals.
   

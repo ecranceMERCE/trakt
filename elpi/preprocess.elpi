@@ -449,7 +449,7 @@ preprocess (app [F|Args]) none LTarget TVar CtxF (app [F|ProcessedArgs]) Proof :
   Proof = proof.trans TVar Proofs.
 
 % other terms are left untouched
-preprocess Term _ _ _ CtxF Term (proof.none (CtxF Term)).
+preprocess Term _ _ _ CtxF Term (proof.none (CtxF Term)) :-
   when (debug) (coq.say "preprocess none" {coq.term->string Term}).
 
 % fold preprocess, empty context and a specific type variance for each argument

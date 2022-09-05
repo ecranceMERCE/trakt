@@ -111,7 +111,7 @@ bool-to-prop {{ lp:{{ app [F|Args] }} = true }} TVar OutTerm Proof :-
   std.take-last NArgs Args NonTypeArgs,
   std.append UsedTypeArgs NonTypeArgs ProofArgs,
   RwLemma = app [EquProof|ProofArgs],
-  coq.typecheck RwLemma LemmaT ok,
+  coq.typecheck RwLemma _ ok,
   if (TVar = covariant) (
     Proof = proof.of-term {{ iffRL lp:RwLemma }}
   ) (
