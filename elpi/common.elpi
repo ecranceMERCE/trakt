@@ -10,15 +10,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 pred verbose.
-
-verbose :-
-  coq.option.get ["trakt.verbosity"] (coq.option.int (some N)),
-  N > 0.
-
 pred debug.
-
-debug :-
-  coq.option.get ["trakt.verbosity"] (coq.option.int (some 2)).
 
 pred invert-variance i:type-variance, o:type-variance.
 
