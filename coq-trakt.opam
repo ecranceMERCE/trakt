@@ -11,8 +11,8 @@ doc: "https://ecrancemerce.github.io/trakt/"
 build: [ make "-j%{jobs}%" ]
 install: [ make "install" ]
 depends: [
-  "coq-elpi" {>= "1.11.1" & < "1.15~"}
-  "coq" {>= "8.13~" & < "8.16~" }
+  "coq-elpi" {>= "1.12~"}
+  "coq" {>= "8.15~"}
 ]
 tags: [ 
   "category:Computer Science/Decision Procedures and Certified Algorithms/Decision procedures"
