@@ -233,11 +233,21 @@ Trakt Add Relation 2 (@eq_op int_eqType : int -> int -> bool) (@eq int) eqopint_
 
 Trakt Add Relation 2 (@eq int) (@eq Z) eqint_eqZ_equiv.
 
+Local Open Scope ring_scope.
+
+Lemma intmul_Zmul_embed_eq : forall (x y : int),
+  Z_of_int (@intmul int_ZmodType x y) = (Z_of_int x * Z_of_int y)%Z.
+Proof.
+  apply (@TBOpInj _ _ _ _ _ _ _ _ _ _ Op_int_intmul).
+Qed.
+
+Trakt Add Symbol (@intmul int_ZmodType) Z.mul intmul_Zmul_embed_eq.
+
 Trakt Add Conversion GRing.add.
 Trakt Add Conversion GRing.mul.
 Trakt Add Conversion GRing.one.
-
-Local Open Scope ring_scope.
+Trakt Add Conversion intmul.
+Trakt Add Conversion GRing.Zmodule.sort.
 
 Goal forall (f : int -> int) (x : int), x == 4 = true -> f (2%:Z * x + 1) == f 5 = true.
 Proof.
