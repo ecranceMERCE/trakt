@@ -1,6 +1,6 @@
 # About me
 
-I am [Enzo Crance](https://www.crance.bzh), a PhD researcher at [Mitsubishi Electric R&D Centre Europe (MERCE)](https://www.mitsubishielectric-rce.eu/merce-in-france/) and [Inria Gallinette](https://gallinette.gitlabpages.inria.fr/website/).
+I am [Enzo Crance](https://ecrance.net), a PhD researcher at [Mitsubishi Electric R&D Centre Europe (MERCE)](https://www.mitsubishielectric-rce.eu/merce-in-france/) and [Inria Gallinette](https://gallinette.gitlabpages.inria.fr/website/).
 Should you have any question or remark about Trakt or anything related, please feel free to contact me by email or on the Coq Zulip server.
 
 ```
