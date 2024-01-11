@@ -13,13 +13,17 @@ From elpi Require Import elpi.
 
 From Trakt Require Import InternalProofs.
 
+From Trakt.Elpi Extra Dependency "types.elpi" as types.
+From Trakt.Elpi Extra Dependency "common.elpi" as common.
+From Trakt.Elpi Extra Dependency "commands.elpi" as commands.
+
 Elpi Command Trakt.
 
 Elpi Query lp:{{
   coq.option.add ["trakt.verbosity"] (coq.option.int (some 0)) ff.
 }}.
 
-Elpi Accumulate File "types.elpi" From Trakt.Elpi.
+Elpi Accumulate File types.
 Elpi Typecheck.
 
 From Trakt Require Export Database.
@@ -28,10 +32,10 @@ Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
 
-Elpi Accumulate File "common.elpi" From Trakt.Elpi.
+Elpi Accumulate File common.
 Elpi Typecheck.
 
-Elpi Accumulate File "commands.elpi" From Trakt.Elpi.
+Elpi Accumulate File commands.
 Elpi Typecheck.
 
 Elpi Accumulate lp:{{
