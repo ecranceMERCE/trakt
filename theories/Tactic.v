@@ -17,13 +17,13 @@ From Trakt Require Export Database.
 From Trakt.Elpi Extra Dependency "types.elpi" as types.
 From Trakt.Elpi Extra Dependency "common.elpi" as common.
 From Trakt.Elpi Extra Dependency "proof.elpi" as proof.
-From Trakt.Elpi Extra Dependency "rewrite-identities.elpi" as rewrite_identities.
+From Trakt.Elpi Extra Dependency "rewrite_identities.elpi" as rewrite_identities.
 From Trakt.Elpi Extra Dependency "preprocess.elpi" as preprocess.
-From Trakt.Elpi Extra Dependency "generalise-free-variables.elpi" as generalise_free_variables.
-From Trakt.Elpi Extra Dependency "bool-to-prop.elpi" as bool_to_prop.
+From Trakt.Elpi Extra Dependency "generalise_free_variables.elpi" as generalise_free_variables.
+From Trakt.Elpi Extra Dependency "bool_to_prop.elpi" as bool_to_prop.
 From Trakt.Elpi Extra Dependency "tactic.elpi" as tactic.
-From Trakt.Elpi Extra Dependency "boolify-arrows.elpi" as boolify_arrows.
-From Trakt.Elpi Extra Dependency "reorder-quantifiers.elpi" as reorder_quantifiers.
+From Trakt.Elpi Extra Dependency "boolify_arrows.elpi" as boolify_arrows.
+From Trakt.Elpi Extra Dependency "reorder_quantifiers.elpi" as reorder_quantifiers.
 
 Elpi Tactic trakt.
 
