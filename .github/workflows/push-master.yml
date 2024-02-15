@@ -1,0 +1,16 @@
+name: Workflow for push on master branch of Trakt
+
+on:
+  push:
+    branches:
+      - master
+      - ci
+
+jobs:
+  push-master:
+    strategy:
+      matrix:
+        coq-version: [8.17, 8.18, 8.19]
+    uses: ./.github/workflows/from-sources.yml
+    with:
+      coq-version: ${{ matrix.coq-version }}
