@@ -1,0 +1,28 @@
+name: Reusable workflow for Trakt
+
+on:
+  workflow_call:
+    inputs:
+      coq-version:
+        required: true
+        type: string
+
+jobs:
+  from-sources:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # don't stop jobs if one fails
+    steps: 
+      - uses: actions/checkout@v3
+      - uses: coq-community/docker-coq-action@v1
+        with: 
+          custom_image: coqorg/coq:${{ inputs.coq-version }}
+          custom_script: |
+            sudo chown -R coq:coq .
+            opam update
+            opam upgrade -y
+            opam install -y coq-elpi
+            make
+            make install
+            make clean
+            sudo chown -R 1001:116 .
