@@ -46,7 +46,7 @@ preprocess-extra
       (coq.say "after bool to Prop:" {coq.term->string Term3}),
 
     % 4. launch preprocessing
-    preprocess Term3 ETargetOpt LTarget TVar (t\ t) Term4 Proof,
+    preprocess Term3 ETargetOpt LTarget TVar (t\ t) true Term4 Proof,
 
     when (debug)
       (coq.say "after preprocess (raw):" Term4),
