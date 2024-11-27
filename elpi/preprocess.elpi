@@ -113,11 +113,11 @@ preprocess (prod N T F) ETargetOpt LTarget TVar _ OutTerm Proof :- !,
         % inverse lemmas, but some embedding identities must be removed
         make-reverse-embedding-context FunT ETarget REF,
         std.map.make cmp_term EmptyMap,
-        pi x'\ decl x' _ T' => (
+        pi x'\ (decl x' _ T' ==>
           beta-reduce (F' (REF x')) (BF x'),
           if (CondFOpt = some CondF) (
             % there will be a condition in the final proof
-            pi c\ decl c _ (CondF x') => (
+            pi c\ (decl c _ (CondF x') ==>
               std.map.add x' c EmptyMap (CondProofs x' c),
               rewrite-identities (BF x') ETarget LTarget (CondProofs x' c) (RwProofC x' c),
               clear-custom-terms-in-proof (RwProofC x' c) (RwProofC' x' c),
@@ -725,7 +725,7 @@ pred generalise
 generalise X Term FT ETarget F' :-
   pi x\
     % first replace X with a fresh variable
-    copy X x => copy Term (F x),
+    (copy X x => copy Term (F x)),
     % then remove embedding functions around this variable everywhere in the term
     remove-embeddings-around x (F x) FT ETarget (F' x).
 
