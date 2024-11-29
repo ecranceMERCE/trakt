@@ -72,7 +72,11 @@ Proof.
   intros []; cbv [negb]; auto.
 Qed.
 
-Elpi Db logic.db lp:{{
+From Trakt.Elpi Extra Dependency "types.elpi" as types.
+
+Elpi Db logic.db lp:{{ }}.
+Elpi Accumulate logic.db File Signature types.
+Elpi Accumulate logic.db lp:{{
   logical-connector
     {{ and }} {{ andb }} [covariant, covariant]
     {{ and_impl_morphism }} {{ andb_and_impl }} {{ and_andb_impl }}.
@@ -106,6 +110,13 @@ Proof.
 Qed.
 
 Elpi Db embeddings.db lp:{{ }}.
+Elpi Accumulate embeddings.db File Signature types.
+
 Elpi Db symbols.db lp:{{ }}.
+Elpi Accumulate symbols.db File Signature types.
+
 Elpi Db relations.db lp:{{ }}.
+Elpi Accumulate relations.db File Signature types.
+
 Elpi Db conversion.db lp:{{ }}.
+Elpi Accumulate conversion.db File Signature types.
