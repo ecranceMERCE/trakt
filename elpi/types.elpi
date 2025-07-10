@@ -98,7 +98,7 @@ pred logical-connector
   o:term, % reflection lemma
   o:term. % reflection lemma the other way
 
-pred symbol
+pred symbol_
   o:term,        % S: source symbol
   o:option term, % target embedding type when translating the symbol
   o:term,        % S': target symbol
