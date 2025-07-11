@@ -36,7 +36,7 @@ bind-forall.list Term [] [] [] Term.
 
 bind-forall.list Term [V|Vs] [T|Ts] [N|Ns] (prod N T F) :-
   bind-forall.list Term Vs Ts Ns GTerm,
-  pi x\ copy V x => copy GTerm (F x).
+  pi x\ (copy V x :- !) => copy GTerm (F x).
 
 % find variables in a goal that are not directly bound in this goal but declared in the context
 pred find-free-variables

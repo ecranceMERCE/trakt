@@ -260,20 +260,20 @@ preprocess Term (some ETarget) LTarget TVar CtxF PreprocEquiv Term' Proof :-
   )),
   (T = none ; T = some ETarget),
   ((
-    symbol F T F' EqProof, !,
+    symbol_ F T F' EqProof, !,
     Args' = Args
   ); (
     conversion-allowed F,
-    symbol G T F' EqProof,
+    symbol_ G T F' EqProof,
     coq.unify-eq F G ok, !,
     Args' = Args
   ); (
     Args = [X|Args'], not (Args' = []),
-    symbol (app [F, X]) T F' EqProof, !
+    symbol_ (app [F, X]) T F' EqProof, !
   ); (
     Args = [X|Args'], not (Args' = []),
     conversion-allowed F,
-    symbol G T F' EqProof,
+    symbol_ G T F' EqProof,
     coq.unify-eq (app [F, X]) G ok
   )), !,
   when (debug) (coq.say "preprocess symbol (with target)" {coq.term->string F}),
@@ -287,20 +287,20 @@ preprocess Term (some ETarget) LTarget TVar CtxF PreprocEquiv Term' Proof :-
 % function application (symbol) without target type
 preprocess (app [F|Args]) none LTarget TVar CtxF PreprocEquiv Term' Proof :-
   ((
-    symbol F none F' EqProof, !,
+    symbol_ F none F' EqProof, !,
     Args' = Args
   ); (
     conversion-allowed F,
-    symbol G none F' EqProof,
+    symbol_ G none F' EqProof,
     coq.unify-eq F G ok, !,
     Args' = Args
   ); (
     Args = [X|Args'], not (Args' = []),
-    symbol (app [F, X]) none F' EqProof, !
+    symbol_ (app [F, X]) none F' EqProof, !
   ); (
     Args = [X|Args'], not (Args' = []),
     conversion-allowed F,
-    symbol G none F' EqProof,
+    symbol_ G none F' EqProof,
     coq.unify-eq (app [F, X]) G ok
   )), !,
   when (debug) (coq.say "preprocess symbol (no target)" {coq.term->string F}),
@@ -413,10 +413,10 @@ preprocess (app [F|Args]) none LTarget TVar CtxF PreprocEquiv OutTerm Proof :-
 preprocess (app [cast E, X]) (some ETarget) _ TVar CtxF _ X' Proof :-
   embedding _ ETarget E _ _ _ _ _ _,
   ((
-    symbol X (some ETarget) X' EqProof, !
+    symbol_ X (some ETarget) X' EqProof, !
   ); (
     conversion-allowed {term-head X},
-    symbol Y (some ETarget) X' EqProof,
+    symbol_ Y (some ETarget) X' EqProof,
     coq.unify-eq X Y ok
   )), !,
   when (debug) (coq.say "preprocess embedded symbol arity 0" {coq.term->string X}),
@@ -738,7 +738,7 @@ pred generalise
 generalise X Term FT ETarget F' :-
   pi x\
     % first replace X with a fresh variable
-    copy X x => copy Term (F x),
+    (copy X x :- !) => copy Term (F x),
     % then remove embedding functions around this variable everywhere in the term
     remove-embeddings-around x (F x) FT ETarget (F' x).
 

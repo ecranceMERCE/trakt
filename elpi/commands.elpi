@@ -171,10 +171,10 @@ add-symbol [trm S, trm ETarget, trm S', trm Proof] :- !,
     (std.forall2 [OutT|InTs] [OutT'|InTs'] (x\ y\ when (exists-embedding x y _) (y = ETarget)))
       {std.string.concat "\n"
         ["an embedding is made towards another target type than the provided one", "", ""]},
-  when (symbol SE (some ETarget) SE' _)
+  when (symbol_ SE (some ETarget) SE' _)
     (coq.error {std.string.concat "\n" ["this symbol has already been registered", "", ""]}),
   coq.elpi.accumulate _ "symbols.db"
-    (clause _ _ (symbol SE (some ETarget) SE' ProofE)),
+    (clause _ _ (symbol_ SE (some ETarget) SE' ProofE)),
   when (verbose)
     (coq.say "Added symbol mapping between" {coq.term->string SE} "and" {coq.term->string SE'}
              "targeting" {coq.term->string ETarget}).
@@ -198,10 +198,10 @@ add-symbol [trm S, trm S', trm Proof] :- !,
   FT' = pr OutT' InTs',
   std.assert! (infer-embedding-target [OutT|InTs] [OutT'|InTs'] ETargetOpt) {std.string.concat "\n"
     ["several possible embedding target types", "", ""]},
-  when (symbol SE ETargetOpt SE' _)
+  when (symbol_ SE ETargetOpt SE' _)
     (coq.error {std.string.concat "\n" ["this symbol has already been registered", "", ""]}),
   coq.elpi.accumulate _ "symbols.db"
-    (clause _ _ (symbol SE ETargetOpt SE' ProofE)),
+    (clause _ _ (symbol_ SE ETargetOpt SE' ProofE)),
   when (verbose) (
     if (ETargetOpt = some ETarget) (
       coq.say "Added symbol mapping between" {coq.term->string SE} "and" {coq.term->string SE'}

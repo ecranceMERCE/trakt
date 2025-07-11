@@ -73,6 +73,19 @@ Proof.
 Qed.
 
 Elpi Db logic.db lp:{{
+  kind type-variance type.
+
+  type covariant type-variance.
+  type contravariant type-variance.
+
+  pred logical-connector
+  o:term, % source connector
+  o:term, % target connector
+  o:(list type-variance), % the type variances of the arguments
+  o:term, % proof that this connector is a morphism for implication
+  o:term, % reflection lemma
+  o:term. % reflection lemma the other way
+
   logical-connector
     {{ and }} {{ andb }} [covariant, covariant]
     {{ and_impl_morphism }} {{ andb_and_impl }} {{ and_andb_impl }}.
@@ -105,7 +118,40 @@ Proof.
   intros [] []; cbn [eqb]; intro H; split; auto.
 Qed.
 
-Elpi Db embeddings.db lp:{{ }}.
-Elpi Db symbols.db lp:{{ }}.
-Elpi Db relations.db lp:{{ }}.
+Elpi Db embeddings.db lp:{{
+
+pred embedding
+  o:term, % source type
+  o:term, % target type
+  o:term, % E: forward embedding function
+  o:term, % RE: backward embedding function
+  o:term, % proof that λx.RE (E x) is an identity
+  o:term, % proof that λx.E (RE x) is an identity if the condition is true for x
+  o:(option term), % the logic used to express the condition (bool or Prop)
+  o:(option term), % the embedding condition (e.g. positivity for nat)
+  o:(option term). % a proof that this condition is always true for any embedded term
+
+ }}.
+Elpi Db symbols.db lp:{{
+
+  pred symbol_
+  o:term,        % S: source symbol
+  o:option term, % target embedding type when translating the symbol
+  o:term,        % S': target symbol
+  o:term.        % proof that embedding S gives S'
+
+ }}.
+Elpi Db relations.db lp:{{
+  pred relation
+  o:term,        % F: head term of the source relation
+  o:option term, % target embedding type when translating the relation
+  o:term,        % output logic of R (bool or Prop)
+  o:term,        % R: full source relation
+  o:int,         % number of non-type arguments in R
+  o:term,        % R': target relation
+  o:term,        % output logic of R'
+  o:int,         % number of prefix type arguments not involved in the proof
+  o:term.        % proof that embedding R is equivalent to R'
+
+ }}.
 Elpi Db conversion.db lp:{{ }}.
