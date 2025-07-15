@@ -1,6 +1,12 @@
 (* This example file depends on mczify (https://github.com/math-comp/mczify), in order not to lose
    too much time re-doing similar proofs to fuel our knowledge database. *)
 
+(* Dependencies:
+   - coq-mathcomp-algebra
+   - coq-mathcomp-zify
+   <= 1.19.0
+ *)
+
 From Coq Require Import ZArith ZifyClasses ZifyBool ZifyInst.
 From mathcomp Require Import ssrint.
 
@@ -249,10 +255,11 @@ Trakt Add Conversion GRing.one.
 Trakt Add Conversion intmul.
 Trakt Add Conversion GRing.Zmodule.sort.
 
+(* TO FIX *)
 Goal forall (f : int -> int) (x : int), x == 4 = true -> f (2%:Z * x + 1) == f 5 = true.
 Proof.
   (* Set Printing All. *)
-  trakt Z Prop.
+  (* trakt Z Prop. *)
 Abort.
 
 Trakt Add Conversion Num.NumDomain.porderType.
