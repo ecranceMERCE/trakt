@@ -1,0 +1,23 @@
+name: Workflow for push on 1.2.1 branch of Trakt
+
+on:
+  push:
+    branches:
+      - trakt-1.2.1
+  pull_request:
+    branches:
+      - trakt-1.2.1
+
+jobs:
+  master:
+    strategy:
+      matrix:
+        coq-version:
+          - coqorg/coq:8.17
+          - coqorg/coq:8.18
+          - coqorg/coq:8.19
+          - coqorg/coq:8.20
+          - rocq/rocq-prover:9.0
+    uses: ./.github/workflows/from-sources.yml
+    with:
+      coq-version: ${{ matrix.coq-version }}
