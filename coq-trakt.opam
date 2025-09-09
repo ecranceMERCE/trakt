@@ -11,7 +11,7 @@ doc: "https://ecrancemerce.github.io/trakt/"
 build: [ make "-j%{jobs}%" ]
 install: [ make "install" ]
 depends: [
-  "coq-elpi" {>= "1.12~"}
+  "coq-elpi" {{>= "1.12~"} { < "3.1" }}
   ("coq" {>= "8.15~"}
    | "rocq-stdlib")
 ]
