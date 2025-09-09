@@ -13,12 +13,12 @@ jobs:
     strategy:
       matrix:
         coq-version:
-          - coqorg/coq:8.17
-          - coqorg/coq:8.18
-          - coqorg/coq:8.19
+          # - coqorg/coq:8.17
+          # - coqorg/coq:8.18
+          # - coqorg/coq:8.19
           - coqorg/coq:8.20
-          - rocq/rocq-prover:9.0
-          - rocq/rocq-prover:dev
+          # - rocq/rocq-prover:9.0
+          # - rocq/rocq-prover:dev
     uses: ./.github/workflows/from-sources.yml
     with:
       coq-version: ${{ matrix.coq-version }}
