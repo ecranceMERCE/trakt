@@ -48,7 +48,7 @@ Elpi Accumulate lp:{{
 
   elaborate-argument A A.
 
-  pred operation i:string, i:string, o:(pred i:list argument).
+  pred operation i:string, i:string, o:((list argument)->prop).
 
   operation "Add" "Embedding" add-embedding.
   operation "Add" "Symbol" add-symbol.
