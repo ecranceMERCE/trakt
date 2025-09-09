@@ -21,7 +21,7 @@ jobs:
             sudo chown -R 1000:1000 .
             opam update
             opam upgrade -y
-            opam install -y coq-elpi
+            opam install -y . --deps-only
             make
             make install
             make clean
