@@ -12,7 +12,7 @@ jobs:
   master:
     strategy:
       matrix:
-        coq-version
+        coq-version:
           - coqorg/coq:8.17
           - coqorg/coq:8.18
           - coqorg/coq:8.19
