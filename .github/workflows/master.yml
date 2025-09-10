@@ -1,12 +1,12 @@
-name: Workflow for push on 1.2.1 branch of Trakt
+name: Workflow for push on elpi-2 branch of Trakt
 
 on:
   push:
     branches:
-      - trakt-1.2.1
+      - elpi-2
   pull_request:
     branches:
-      - trakt-1.2.1
+      - elpi-2
 
 jobs:
   master:
@@ -21,4 +21,3 @@ jobs:
     uses: ./.github/workflows/from-sources.yml
     with:
       coq-version: ${{ matrix.coq-version }}
-      
