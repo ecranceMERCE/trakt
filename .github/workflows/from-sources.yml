@@ -16,12 +16,12 @@ jobs:
       - uses: actions/checkout@v3
       - uses: coq-community/docker-coq-action@v1
         with: 
-          custom_image: coqorg/coq:${{ inputs.coq-version }}
+          custom_image: ${{ inputs.coq-version }}
           custom_script: |
-            sudo chown -R coq:coq .
+            sudo chown -R 1000:1000 .
             opam update
             opam upgrade -y
-            opam install -y coq-elpi
+            opam install -y . --deps-only
             make
             make install
             make clean
