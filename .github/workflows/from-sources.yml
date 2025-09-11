@@ -23,6 +23,6 @@ jobs:
             opam upgrade -y
             opam install -y . --deps-only --with-test
             make
-            make test
+            make install.test
             make clean
             sudo chown -R 1001:116 .
