@@ -14,6 +14,8 @@ depends: [
   "elpi" {>= "2.0"}
   "coq-elpi" {>= "2.3.0"}
   ("coq" {>= "8.20"} | "rocq-stdlib")
+    "coq-mathcomp-zify" {with-test}
+  ("rocq-mathcomp-algebra" | "coq-mathcomp-algebra") {with-test}
 ]
 tags: [ 
   "category:Computer Science/Decision Procedures and Certified Algorithms/Decision procedures"
