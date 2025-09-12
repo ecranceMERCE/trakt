@@ -9,6 +9,7 @@
 
 From Coq Require Import ZArith ZifyClasses ZifyBool ZifyInst.
 From mathcomp.algebra Require Import ssrint.
+From mathcomp Require Import order.
 
 From mathcomp.zify Require Import ssrZ zify_algebra.
 Import AlgebraZifyInstances.
@@ -264,7 +265,7 @@ Proof.
   (* trakt Z Prop. *)
 Abort.
 
-Trakt Add Conversion Num.NumDomain.porderType.
+Trakt Add Conversion Order.POrder.Exports.porderType.
 
 Lemma Orderle_int_Zleb_equiv : forall (x y : int), x <= y = (Z_of_int x <=? Z_of_int y)%Z.
 Proof.
@@ -272,7 +273,7 @@ Proof.
 Qed.
 
 Trakt Add Relation 2
-  (@Order.le ring_display int_porderType)
+  (@Order.le ring_display int)
   Z.leb
   Orderle_int_Zleb_equiv.
 
@@ -310,7 +311,7 @@ Proof.
 Abort.
 
 (* ===== relation families ====================================================================== *)
-
+From Stdlib Require Import Vector.
 Definition bitvector n := Vector.t bool n.
 
 Module bitvector.
