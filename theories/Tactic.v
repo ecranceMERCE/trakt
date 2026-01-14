@@ -76,6 +76,7 @@ Elpi Accumulate lp:{{
   solve _ _ :-
     coq.error "usage: trakt [target embedding type] <bool|Prop> [with rel <relations>]".
 }}.
+Elpi Typecheck.
 
 Tactic Notation "trakt" constr(target) constr(logic_target) "with" "rel" constr(l) :=
   elpi trakt ltac_term:(target) ltac_term:(logic_target) ltac_term:(l).
@@ -157,6 +158,7 @@ Elpi Accumulate lp:{{
       "             [with rel <relations>]"
     ]}.
 }}.
+Elpi Typecheck.
 
 Tactic Notation "trakt_pose" constr(et) constr(lt) ":" constr(h) "as" ident(s) :=
   elpi trakt_pose ltac_term:(et) ltac_term:(lt) ltac_term:(h) ltac_string:(s).
@@ -190,6 +192,7 @@ Elpi Accumulate lp:{{
   solve _ _ :-
     coq.error "usage: trakt_boolify_arrows.".
 }}.
+Elpi Typecheck.
 
 Tactic Notation "trakt_boolify_arrows" := elpi trakt_boolify_arrows.
 
@@ -209,5 +212,6 @@ Elpi Accumulate lp:{{
   solve _ _ :-
     coq.error "usage: trakt_reorder_quantifiers.".
 }}.
+Elpi Typecheck.
 
 Tactic Notation "trakt_reorder_quantifiers" := elpi trakt_reorder_quantifiers.
