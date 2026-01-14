@@ -11,7 +11,7 @@
 
 From elpi Require Import elpi.
 
-From Stdlib Require Import Bool.
+From Coq Require Import Bool.
 
 Lemma and_impl_morphism : forall {A B A' B' : Prop},
   (A' -> A) -> (B' -> B) -> (A' /\ B' -> A /\ B).
