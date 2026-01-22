@@ -21,8 +21,8 @@ jobs:
             sudo chown -R 1000:1000 .
             opam update
             opam upgrade -y
-            opam install -y . --deps-only
+            opam install -y . --deps-only --with-test
             make
-            make install
+            make install.test
             make clean
             sudo chown -R 1001:116 .

@@ -24,7 +24,6 @@ Elpi Query lp:{{
 }}.
 
 Elpi Accumulate File types.
-Elpi Typecheck.
 
 From Trakt Require Export Database.
 Elpi Accumulate Db embeddings.db.
@@ -33,10 +32,8 @@ Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
 
 Elpi Accumulate File common.
-Elpi Typecheck.
 
 Elpi Accumulate File commands.
-Elpi Typecheck.
 
 Elpi Accumulate lp:{{
   pred elaborate-argument i:argument, o:argument.
