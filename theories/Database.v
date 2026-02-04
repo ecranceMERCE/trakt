@@ -73,28 +73,28 @@ Proof.
 Qed.
 
 Elpi Db logic.db lp:{{
-  kind db-type-variance type.
+  kind type-variance type.
 
-  type covariant db-type-variance.
-  type contravariant db-type-variance.
+  type covariant type-variance.
+  type contravariant type-variance.
 
-  pred db-logical-connector
+  pred logical-connector
   o:term, % source connector
   o:term, % target connector
-  o:(list db-type-variance), % the type variances of the arguments
+  o:(list type-variance), % the type variances of the arguments
   o:term, % proof that this connector is a morphism for implication
   o:term, % reflection lemma
   o:term. % reflection lemma the other way
 
-  db-logical-connector
+  logical-connector
     {{ and }} {{ andb }} [covariant, covariant]
     {{ and_impl_morphism }} {{ andb_and_impl }} {{ and_andb_impl }}.
 
-  db-logical-connector
+  logical-connector
     {{ or }} {{ orb }} [covariant, covariant]
     {{ or_impl_morphism }} {{ orb_or_impl }} {{ or_orb_impl }}.
   
-  db-logical-connector
+  logical-connector
     {{ not }} {{ negb }} [contravariant]
     {{ not_impl_morphism }} {{ negb_not_impl }} {{ not_negb_impl }}.
 }}.
