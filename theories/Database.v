@@ -72,20 +72,12 @@ Proof.
   intros []; cbv [negb]; auto.
 Qed.
 
-Elpi Db logic.db lp:{{
-  kind type-variance type.
 
-  type covariant type-variance.
-  type contravariant type-variance.
+Elpi Db logic.db lp:{{  }}.
+From Trakt.Elpi Extra Dependency "types.elpi" as types.
+Elpi Accumulate logic.db File types.
 
-  pred logical-connector
-  o:term, % source connector
-  o:term, % target connector
-  o:(list type-variance), % the type variances of the arguments
-  o:term, % proof that this connector is a morphism for implication
-  o:term, % reflection lemma
-  o:term. % reflection lemma the other way
-
+Elpi Accumulate logic.db lp:{{
   logical-connector
     {{ and }} {{ andb }} [covariant, covariant]
     {{ and_impl_morphism }} {{ andb_and_impl }} {{ and_andb_impl }}.
@@ -93,7 +85,7 @@ Elpi Db logic.db lp:{{
   logical-connector
     {{ or }} {{ orb }} [covariant, covariant]
     {{ or_impl_morphism }} {{ orb_or_impl }} {{ or_orb_impl }}.
-  
+
   logical-connector
     {{ not }} {{ negb }} [contravariant]
     {{ not_impl_morphism }} {{ negb_not_impl }} {{ not_negb_impl }}.

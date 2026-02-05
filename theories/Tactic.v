@@ -27,9 +27,8 @@ From Trakt.Elpi Extra Dependency "reorder_quantifiers.elpi" as reorder_quantifie
 
 Elpi Tactic trakt.
 
-Elpi Accumulate File types.
-Elpi Accumulate Db embeddings.db.
 Elpi Accumulate Db logic.db.
+Elpi Accumulate Db embeddings.db.
 Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
@@ -92,9 +91,8 @@ Tactic Notation "trakt" constr(logic_target) :=
 
 Elpi Tactic trakt_pose.
 
-Elpi Accumulate File types.
-Elpi Accumulate Db embeddings.db.
 Elpi Accumulate Db logic.db.
+Elpi Accumulate Db embeddings.db.
 Elpi Accumulate Db symbols.db.
 Elpi Accumulate Db relations.db.
 Elpi Accumulate Db conversion.db.
@@ -176,7 +174,6 @@ Tactic Notation "trakt_pose"
 
 Elpi Tactic trakt_boolify_arrows.
 
-Elpi Accumulate File types.
 Elpi Accumulate Db logic.db.
 Elpi Accumulate File common.
 Elpi Accumulate File proof.
