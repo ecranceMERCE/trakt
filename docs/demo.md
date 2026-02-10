@@ -1,7 +1,7 @@
 # Quick demo
 
 !> This is only a showcase example.
-For a more complete and precise overview, please head to the [tutorial](tutorial.md) and see the example files on [GitHub](https://github.com/ecranceMERCE/trakt).
+For a more complete and precise overview, please head to the [tutorial](tutorial.md) and see the example files on [GitHub](https://github.com/rocq-trakt/trakt).
 
 Here is a very small example of the possibilities of Trakt.
 Consider the following goal:
@@ -25,7 +25,7 @@ Before running the tactic, we need to make the following declarations:
 - `nat` is embeddable into `Z` with a positivity condition;
 - the equality on `nat` can be replaced with the boolean equality on `Z`;
 - the addition on `int` can be replaced with the addition on `Z`;
-- the projections `GRing.add`, `GRing.zero` and `GRing.Zmodule.sort` can trigger Coq conversion to detect the underlying terms.
+- the projections `GRing.add`, `GRing.zero` and `GRing.Zmodule.sort` can trigger Rocq conversion to detect the underlying terms.
 
 First, we need to declare the **embedding** on `nat`:
 
@@ -69,7 +69,7 @@ Trakt Add Symbol (i0) (Z0) (i0_Z0_embed_eq).
 !> Here, `Z_of_int` and `i0` are fictional and not present in the real MathComp library.
 We introduce them for the purpose of the example.
 
-Finally, we need to tell Trakt that Coq conversion must be enabled on the MathComp projections, so that the tool is able to detect the real values hidden behind them.
+Finally, we need to tell Trakt that Rocq conversion must be enabled on the MathComp projections, so that the tool is able to detect the real values hidden behind them.
 
 ```coq
 Trakt Add Conversion (@GRing.add).

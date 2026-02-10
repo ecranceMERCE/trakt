@@ -1,7 +1,7 @@
 # Auxiliary tactics
 
 Trakt also comes with some auxiliary tactics.
-They were developed as an additional layer to make Trakt compatible with the [SMTCoq](smtcoq.github.io/) plugin, but they are available to all the users.
+They were developed as an additional layer to make Trakt compatible with the [SMTCoq](https://smtcoq.github.io/) plugin, but they are available to all the users.
 
 ### Preprocessing hypotheses
 
