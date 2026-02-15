@@ -8,7 +8,8 @@
  *)
 
 From Coq Require Import ZArith ZifyClasses ZifyBool ZifyInst.
-From mathcomp Require Import ssrint.
+From mathcomp.algebra Require Import ssrint.
+From mathcomp Require Import order.
 
 From mathcomp.zify Require Import ssrZ zify_algebra.
 Import AlgebraZifyInstances.
@@ -235,19 +236,21 @@ Proof.
   by move=> x y; split=> /eqP.
 Qed.
 
-Trakt Add Relation 2 (@eq_op int_eqType : int -> int -> bool) (@eq int) eqopint_eqint_equiv.
+Trakt Add Relation 2 (@eq_op _ : int -> int -> bool) (@eq int) eqopint_eqint_equiv.
 
 Trakt Add Relation 2 (@eq int) (@eq Z) eqint_eqZ_equiv.
 
 Local Open Scope ring_scope.
 
 Lemma intmul_Zmul_embed_eq : forall (x y : int),
-  Z_of_int (@intmul int_ZmodType x y) = (Z_of_int x * Z_of_int y)%Z.
+  Z_of_int (@intmul _ x y) = (Z_of_int x * Z_of_int y)%Z.
 Proof.
+  Set Printing Implicit.
+  Set Printing All.
   apply (@TBOpInj _ _ _ _ _ _ _ _ _ _ Op_int_intmul).
 Qed.
 
-Trakt Add Symbol (@intmul int_ZmodType) Z.mul intmul_Zmul_embed_eq.
+Trakt Add Symbol (@intmul _ :> int->int->int) Z.mul intmul_Zmul_embed_eq.
 
 Trakt Add Conversion GRing.add.
 Trakt Add Conversion GRing.mul.
@@ -262,7 +265,7 @@ Proof.
   (* trakt Z Prop. *)
 Abort.
 
-Trakt Add Conversion Num.NumDomain.porderType.
+Trakt Add Conversion Order.POrder.Exports.porderType.
 
 Lemma Orderle_int_Zleb_equiv : forall (x y : int), x <= y = (Z_of_int x <=? Z_of_int y)%Z.
 Proof.
@@ -270,7 +273,7 @@ Proof.
 Qed.
 
 Trakt Add Relation 2
-  (@Order.le ring_display int_porderType)
+  (@Order.le ring_display int)
   Z.leb
   Orderle_int_Zleb_equiv.
 
@@ -308,7 +311,7 @@ Proof.
 Abort.
 
 (* ===== relation families ====================================================================== *)
-
+From Stdlib Require Import Vector.
 Definition bitvector n := Vector.t bool n.
 
 Module bitvector.
